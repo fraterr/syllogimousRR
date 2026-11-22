@@ -1,6 +1,6 @@
 // Service worker: the whole app is cached on install so it works offline.
 // VERSION and ASSETS are written by `npm run sw` (scripts/sw-version.mjs).
-const VERSION = '9fc350de0c62';
+const VERSION = '7f2801b14616';
 const CACHE = 'srr-' + VERSION;
 const ASSETS = [
     './',
@@ -30,6 +30,8 @@ const ASSETS = [
     'fonts/space-grotesk-latin-ext-wght-normal.woff2',
     'fonts/space-grotesk-latin-wght-normal.woff2',
     'icons/apple-touch-icon.png',
+    'icons/favicon-16x16.png',
+    'icons/favicon-32x32.png',
     'icons/icon-192x192.png',
     'icons/icon-512x512.png',
     'icons/icon.svg',

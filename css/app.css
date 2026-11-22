@@ -611,3 +611,6 @@ input[type="text"], input[type="date"], input:not([type]) {
 @media (max-width: 400px) {
     .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* logo: the app icon */
+img.brand__mark { display: block; background: none; }
