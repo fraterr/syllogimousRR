@@ -832,6 +832,15 @@ function historyItem(a) {
 
 let settingsTab = 'questions';
 
+/** Which preset the current settings correspond to (null = customised). */
+function activePreset() {
+    if (app.settings.program) return 'recommended';
+    const same = (a, b) => Array.isArray(a) ? Array.isArray(b) && a.length === b.length && a.every(x => b.includes(x)) : a === b;
+    for (const [name, preset] of Object.entries(PRESETS))
+        if (Object.entries(preset).every(([k, val]) => same(val, app.settings[k]))) return name;
+    return null;
+}
+
 function renderSettings() {
     const v = $('#view-settings');
     const s = app.settings;
@@ -839,10 +848,10 @@ function renderSettings() {
     const warnings = settingsWarnings(s);
     v.innerHTML = `<h1>${escapeHtml(t('set.title'))}</h1>
       <div class="presets"><span class="presets__label">${escapeHtml(t('set.presets'))}:</span>
-        <button type="button" class="btn btn--small btn--primary" data-preset="recommended" aria-describedby="preset-rec-d">${escapeHtml(t('preset.recommended'))}</button>
-        ${Object.keys(PRESETS).map(p => `<button type="button" class="btn btn--small" data-preset="${p}">${escapeHtml(t('preset.' + p))}</button>`).join('')}
+        ${['recommended', ...Object.keys(PRESETS)].map(p => `<button type="button" class="btn btn--small preset-btn" data-preset="${p}" aria-pressed="${p === activePreset()}"${p === 'recommended' ? ' aria-describedby="preset-rec-d"' : ''}>${p === activePreset() ? '<span aria-hidden="true">✓ </span>' : ''}${escapeHtml(t('preset.' + p))}</button>`).join('')}
+        <span class="preset-status" role="status">${escapeHtml(activePreset() ? t('preset.current', { name: t('preset.' + activePreset()) }) : t('preset.custom'))}</span>
       </div>
-      <p class="field__desc presets__desc" id="preset-rec-d">${escapeHtml(t('set.programDesc'))}</p>
+      <p class="field__desc presets__desc" id="preset-rec-d"><strong>${escapeHtml(t('preset.recommended'))}:</strong> ${escapeHtml(t('set.programDesc'))}</p>
       <div class="warnings" role="status">${warnings.map(w => `<p class="notice">${escapeHtml(t(w))}</p>`).join('')}</div>
       <div class="tabs" role="tablist" aria-label="${escapeHtml(t('set.title'))}">
         ${tabs.map(tb => `<button type="button" role="tab" id="tab-${tb}" aria-controls="panel-${tb}" aria-selected="${tb === settingsTab}" tabindex="${tb === settingsTab ? 0 : -1}">${escapeHtml(t('set.tab.' + tb))}</button>`).join('')}
@@ -854,6 +863,7 @@ function renderSettings() {
         else { Object.assign(app.settings, PRESETS[b.dataset.preset], { program: false }); persistSettings(); }
         renderSettings();
         announce(t('preset.applied', { name: t('preset.' + b.dataset.preset) }));
+        $(`[data-preset="${b.dataset.preset}"]`)?.focus();
     };
     const tabButtons = $$('[role="tab"]', v);
     tabButtons.forEach((b, i) => {
@@ -868,6 +878,17 @@ function renderSettings() {
     });
     bindSettingInputs(v);
     if (settingsTab === 'data') renderStorageStatus();
+}
+
+function refreshPresetButtons(v) {
+    const active = activePreset();
+    for (const b of $$('[data-preset]', v)) {
+        const on = b.dataset.preset === active;
+        b.setAttribute('aria-pressed', String(on));
+        b.innerHTML = (on ? '<span aria-hidden="true">✓ </span>' : '') + escapeHtml(t('preset.' + b.dataset.preset));
+    }
+    const st = $('.preset-status', v);
+    if (st) st.textContent = active ? t('preset.current', { name: t('preset.' + active) }) : t('preset.custom');
 }
 
 async function renderStorageStatus() {
@@ -975,6 +996,7 @@ function bindSettingInputs(v) {
             announce(t('set.saved'));
         } else {
             $('.warnings', v).innerHTML = settingsWarnings(app.settings).map(w => `<p class="notice">${escapeHtml(t(w))}</p>`).join('');
+            refreshPresetButtons(v);
         }
         if (key === 'keepAwake') updateWakeLock();
         if (key === 'premiseStyle') setStyle(app.settings.premiseStyle);

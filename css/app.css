@@ -582,3 +582,8 @@ input[type="text"], input[type="date"], input:not([type]) {
     .topbar__inner > nav { order: 3; width: 100%; min-width: 0; overflow-x: auto; scrollbar-width: none; }
     .nav { flex-wrap: nowrap; }
 }
+
+/* presets: the active one is filled, the others outlined */
+.preset-btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.preset-btn[aria-pressed="true"]:hover { background: var(--accent-strong); border-color: var(--accent-strong); color: #fff; }
+.preset-status { font-size: .88rem; font-weight: 600; color: var(--accent); margin-left: .25rem; }
