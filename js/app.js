@@ -81,7 +81,16 @@ function renderShell() {
     for (const b of $$('.nav button')) b.textContent = t('nav.' + b.dataset.view);
     $('footer .credits').textContent = t('about.creditsText').split('. ')[0] + '.';
     updateThemeToggle();
+    $('.tea--header .tea__text').textContent = t('tea.button');
+    $('.tea--header').setAttribute('aria-label', `${t('tea.button')} (${t('tea.newTab')})`);
+    $('.tea-link__text').textContent = '♥ ' + t('tea.button');
+    for (const s of $$('.tea__newtab')) s.textContent = ` (${t('tea.newTab')})`;
 }
+
+const TEA_URL = 'https://buymeacoffee.com/practicalhumanism';
+const TEA_ICON = '<svg class="tea__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 9h12v4a6 6 0 0 1-6 6a6 6 0 0 1-6-6Z"/><path d="M16 10.5h1.5a2.5 2.5 0 0 1 0 5H15.4"/><path d="M7.5 2.5c0 1.3 1.2 1.7 1.2 3M11.5 2.5c0 1.3 1.2 1.7 1.2 3"/><path d="M3 21.5h14"/></svg>';
+/** The support button, as used in About and in the session summary. */
+const teaButton = (extra = '') => `<a class="tea ${extra}" href="${TEA_URL}" target="_blank" rel="noopener">${TEA_ICON}<span class="tea__text">${escapeHtml(t('tea.button'))}</span><span class="sr-only"> (${escapeHtml(t('tea.newTab'))})</span></a>`;
 
 const prefersDark = () => window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
 const isDark = () => app.settings.theme === 'dark' || (app.settings.theme === 'auto' && prefersDark());
@@ -533,6 +542,7 @@ function showSummary(session) {
           <dt>${escapeHtml(t('sum.levels'))}</dt><dd>${escapeHtml(changes)}</dd>
         </dl>
         <p>${escapeHtml(t('sum.rest'))}</p>
+        <p class="summary-tea small">${escapeHtml(t('tea.text'))} ${teaButton('tea--small')}</p>
         <div class="dialog__actions">
           <button type="button" class="btn" data-act="close">${escapeHtml(t('btn.close'))}</button>
           <button type="button" class="btn btn--primary" data-act="continue">${escapeHtml(t('btn.continue'))}</button>
@@ -923,6 +933,11 @@ function renderAbout() {
         <h2>${escapeHtml(t('about.keys'))}</h2><p>${escapeHtml(t('about.keysText'))}</p>
         <h2>${escapeHtml(t('about.credits'))}</h2><p>${escapeHtml(t('about.creditsText'))}</p>
         <p><a href="https://github.com/4skinskywalker/Syllogimous-v3" rel="noopener">Syllogimous v3</a> · <a href="https://creativecommons.org/licenses/by-nc/3.0/" rel="noopener license">CC BY-NC 3.0</a></p>
+      </section>
+      <section class="card support-card">
+        <h2>${escapeHtml(t('tea.title'))}</h2>
+        <p>${escapeHtml(t('tea.text'))}</p>
+        ${teaButton('tea--large')}
       </section>`;
 }
 

@@ -476,3 +476,29 @@ dialog h2 { font-size: 1.6rem; }
 .reveal { margin-top: 1.25rem; }
 .reveal-btn { min-height: 52px; gap: .8rem; }
 .reveal-btn .kbd { border-color: currentColor; }
+
+/* ---------- support button ("Buy me a tea") ---------- */
+:root { --tea: #E9A23B; --tea-hover: #D98E22; --tea-ink: #1E1A12; }
+:root[data-theme="dark"] { --tea: #F2B655; --tea-hover: #F7C878; --tea-ink: #17130A; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --tea: #F2B655; --tea-hover: #F7C878; --tea-ink: #17130A; } }
+.tea {
+    display: inline-flex; align-items: center; gap: .5rem; min-height: 40px; padding: 0 .9rem;
+    background: var(--tea); color: var(--tea-ink); border: 2px solid var(--tea-ink);
+    font-family: var(--display); font-weight: 700; font-size: .92rem; letter-spacing: -0.01em;
+    text-decoration: none; box-shadow: 3px 3px 0 var(--rule); transition: transform .12s, box-shadow .12s, background .12s;
+}
+.tea:hover { background: var(--tea-hover); color: var(--tea-ink); transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--rule); }
+.tea:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--rule); }
+.tea__icon { width: 20px; height: 20px; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.tea--small { min-height: 36px; font-size: .85rem; margin-top: .4rem; }
+.tea--large { min-height: 56px; padding: 0 1.4rem; font-size: 1.15rem; }
+.tea--large .tea__icon { width: 26px; height: 26px; }
+.support-card { border: 2px solid var(--tea); }
+.summary-tea { border-top: 1px solid var(--line); padding-top: .8rem; }
+.tea-link { color: var(--text-2); }
+@media (max-width: 480px) {
+    .tea--header { padding: 0 .6rem; }
+    .tea--header .tea__text { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .tea:hover, .tea:active { transform: none; } }
+.reduce-motion .tea:hover, .reduce-motion .tea:active { transform: none; }
