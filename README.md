@@ -45,10 +45,10 @@ conclusions use any wrong direction instead of always the exact opposite.
 
 New:
 
-- Accessibility: zoom allowed, every control reachable by keyboard (T/1 = True, F/0 = False,
-  Enter = next, ← → = premises), real switches, negation marked by colour **and** a wavy underline
+- Accessibility: zoom allowed, every control reachable by keyboard (← / → = the answer button on
+  that side, Enter = next, ↑ ↓ = premises when shown one at a time), real switches, negation marked by colour **and** a wavy underline
   (optional “¬” symbol), screen-reader announcements, accessible timer, light/dark/system theme,
-  four text sizes, reduced motion. Checked with axe-core (WCAG 2.1 AA): no violations.
+  four text sizes, reduced motion. Dark mode can also be switched from the header. Checked with axe-core (WCAG 2.1 AA): no violations.
 - Adaptive difficulty: a 3-down/1-up staircase per category (about 80% correct); weaker categories
   appear more often; adaptive time limits based on recent response times.
 - Explanations after mistakes: the ordered line, the two groups, the grid/coordinates, the syllogism
@@ -68,6 +68,12 @@ Feedback with information (Wisniewski et al. 2020), interleaving (Brunmair & Ric
 varied/adaptive difficulty (von Bastian & Eschen 2016) and short regular sessions (Lampit et al. 2014)
 shaped the training features. Relational training studies (SMART) report promising but small and
 methodologically weak results.
+
+## Design
+
+Swiss-style layout (strong rules, a large premise count, a dark conclusion block) with a calm sage/teal
+palette, in light and dark themes. Fonts are self-hosted: Inter and Space Grotesk, both under the
+SIL Open Font License (see `fonts/`).
 
 ## Run and test
 

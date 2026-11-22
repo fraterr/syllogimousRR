@@ -1,6 +1,6 @@
 // Application shell: views, question flow, timer, sessions, check-ups.
 
-import { t, setLang, LANGUAGE_NAMES, ANSWER_KEYS } from './i18n.js';
+import { t, setLang, LANGUAGE_NAMES } from './i18n.js';
 import { generateQuestion, TYPES, BASE_TYPES, OPS, MIN_LEVEL, MAX_LEVEL } from './generators.js';
 import { renderStatement, hasNegation, opsInTree, toText, GRAMMAR } from './render.js';
 import { explain, answerWord } from './explain.js';
@@ -79,6 +79,25 @@ function renderShell() {
     $('.brand__tag').textContent = t('app.tagline');
     for (const b of $$('.nav button')) b.textContent = t('nav.' + b.dataset.view);
     $('footer .credits').textContent = t('about.creditsText').split('. ')[0] + '.';
+    updateThemeToggle();
+}
+
+const prefersDark = () => window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+const isDark = () => app.settings.theme === 'dark' || (app.settings.theme === 'auto' && prefersDark());
+
+function updateThemeToggle() {
+    const b = $('.theme-toggle');
+    b.setAttribute('aria-pressed', String(isDark()));
+    b.setAttribute('aria-label', t('theme.toggle'));
+    $('.theme-toggle__text', b).textContent = t('theme.toggle');
+}
+
+function toggleTheme() {
+    app.settings.theme = isDark() ? 'light' : 'dark';
+    persistSettings();
+    applyDisplaySettings();
+    updateThemeToggle();
+    if (app.view === 'settings') renderSettings();
 }
 
 function showView(view) {
@@ -111,14 +130,10 @@ function renderTrainChrome() {
     $('.question__prompt', v).textContent = t('train.question');
     $('.btn--true .btn__text', v).textContent = t('btn.true');
     $('.btn--false .btn__text', v).textContent = t('btn.false');
-    const [tk, fk] = ANSWER_KEYS[lang()] || ANSWER_KEYS.en;
-    $('.btn--true .kbd', v).textContent = tk.toUpperCase();
-    $('.btn--false .kbd', v).textContent = fk.toUpperCase();
-    $('.btn--true', v).setAttribute('aria-keyshortcuts', `${tk.toUpperCase()} 1`);
-    $('.btn--false', v).setAttribute('aria-keyshortcuts', `${fk.toUpperCase()} 0`);
-    $('.step-prev', v).textContent = '‹ ' + t('btn.prevPremise');
-    $('.step-next', v).textContent = t('btn.nextPremise') + ' ›';
-    $('.keys', v).textContent = t('train.keys', { t: tk.toUpperCase() === 'T' ? 'T' : `${tk.toUpperCase()}/T`, f: fk.toUpperCase() === 'F' ? 'F' : `${fk.toUpperCase()}/F` });
+    $('.label--category', v).textContent = t('hist.type');
+    $('.label--level', v).textContent = t('train.premisesHeading');
+    $('.step-prev', v).textContent = '↑ ' + t('btn.prevPremise');
+    $('.step-next', v).textContent = t('btn.nextPremise') + ' ↓';
     $('.bench-abort', v).textContent = t('bench.abort');
     updateStatusbar();
     if (app.q) renderQuestion(false);
@@ -130,8 +145,9 @@ function updateStatusbar() {
     $('.stat--score .stat__value', v).textContent = app.state.score.toLocaleString(lang());
     $('.stat--acc .stat__value', v).textContent = fmtPct(summary(app.answers).accuracy);
     const active = app.session ? app.session.active : 0;
-    $('.stat--session .stat__value', v).textContent = `${fmtClock(active)} / ${app.settings.sessionMinutes}:00`;
-    $('.stat--week .stat__value', v).textContent = t('train.weekValue', { n: sessionsThisWeek(app.sessions), goal: app.settings.weeklyGoal });
+    $('.stat--session .stat__value', v).innerHTML = `${fmtClock(active)}<small> / ${app.settings.sessionMinutes}:00</small>`;
+    $('.stat--week .stat__value', v).innerHTML = `${sessionsThisWeek(app.sessions)}<small> / ${app.settings.weeklyGoal}</small>`;
+    $('.stat--week', v).title = t('train.weekValue', { n: sessionsThisWeek(app.sessions), goal: app.settings.weeklyGoal });
     $('.end-session', v).hidden = !app.session;
     const bb = $('.bench-banner', v);
     bb.hidden = !app.bench;
@@ -197,8 +213,12 @@ function renderQuestion(fresh) {
     const card = $('.question');
     $('.question__empty').hidden = true;
     $('.question__body').hidden = false;
-    $('.question__type').textContent = t('type.' + q.type) + (q.subtype ? ' · ' + t('type.' + q.subtype) : '');
-    $('.question__level').textContent = q.type === 'sorting' ? '' : t('train.premises', { n: q.premises.length });
+    $('.question__type').textContent = t('type.' + q.type);
+    $('.question__subtype').textContent = q.subtype ? t('type.' + q.subtype) : '';
+    $('.question__subtype').hidden = !q.subtype;
+    $('.side-block--level').hidden = q.type === 'sorting';
+    $('.question__level').textContent = q.type === 'sorting' ? '' : String(q.premises.length).padStart(2, '0');
+    $('.question__level').setAttribute('aria-label', q.type === 'sorting' ? '' : t('train.premises', { n: q.premises.length }));
     const sortHost = $('.sorting-host');
     const isSort = q.type === 'sorting';
     $('.question__text').hidden = isSort;
@@ -230,7 +250,18 @@ function renderQuestion(fresh) {
     const answers = $('.answers');
     const tb = $('.btn--true'), fb = $('.btn--false');
     if (q.swap) answers.append(fb, tb); else answers.append(tb, fb);
+    updateAnswerKeys();
     updateStepper();
+}
+
+/** ← picks the left button, → the right one, whatever their meaning. */
+function updateAnswerKeys() {
+    const [left, right] = [...$('.answers').children];
+    $('.kbd', left).textContent = '←';
+    $('.kbd', right).textContent = '→';
+    left.setAttribute('aria-keyshortcuts', 'ArrowLeft');
+    right.setAttribute('aria-keyshortcuts', 'ArrowRight');
+    $('#view-train .keys').textContent = t('train.keys', { left: $('.btn__text', left).textContent, right: $('.btn__text', right).textContent });
 }
 
 const renderOpName = (op) => (GRAMMAR[lang()] || GRAMMAR.en).ops[op];
@@ -813,13 +844,16 @@ function onKey(e) {
     const tag = (e.target.tagName || '').toLowerCase();
     if (['input', 'select', 'textarea'].includes(tag)) return;
     const k = e.key.toLowerCase();
-    const [tk, fk] = ANSWER_KEYS[lang()] || ANSWER_KEYS.en;
     if (app.phase === 'question' && app.q && app.q.type !== 'sorting') {
-        const ready = !$('.btn--true').disabled;
-        if (ready && (k === tk || k === 't' || k === '1')) { e.preventDefault(); answer(true); return; }
-        if (ready && (k === fk || k === 'f' || k === '0')) { e.preventDefault(); answer(false); return; }
-        if (k === 'arrowright') { step(1); e.preventDefault(); }
-        if (k === 'arrowleft') { step(-1); e.preventDefault(); }
+        if (k === 'arrowleft' || k === 'arrowright') {
+            e.preventDefault();
+            const [left, right] = [...$('.answers').children];
+            const btn = k === 'arrowleft' ? left : right;
+            if (!btn.disabled) btn.click();
+            return;
+        }
+        if (app.settings.oneAtATime && k === 'arrowdown') { step(1); e.preventDefault(); }
+        if (app.settings.oneAtATime && k === 'arrowup') { step(-1); e.preventDefault(); }
     } else if (app.phase === 'feedback' && k === 'enter' && tag !== 'button' && tag !== 'summary' && tag !== 'a') {
         e.preventDefault();
         $('.next-btn')?.click();
@@ -838,6 +872,8 @@ async function boot() {
     $('.step-next').onclick = () => step(1);
     $('.end-session').onclick = endSession;
     $('.bench-abort').onclick = abortBench;
+    $('.theme-toggle').onclick = toggleTheme;
+    if (window.matchMedia) window.matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', updateThemeToggle);
     document.addEventListener('keydown', onKey);
     document.addEventListener('visibilitychange', () => { if (document.hidden) pauseTimer(); else if (app.view === 'train') resumeTimer(); });
 

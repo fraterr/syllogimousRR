@@ -1,7 +1,7 @@
 // Every language has every key, with the same placeholders, and every kind of
 // statement renders in every language (plain and negated) without gaps.
 import assert from 'node:assert/strict';
-import { STRINGS, ANSWER_KEYS, LANGUAGE_NAMES } from '../js/i18n.js';
+import { STRINGS, LANGUAGE_NAMES } from '../js/i18n.js';
 import { GRAMMAR, renderStatement, toText, LANGS } from '../js/render.js';
 import { generateQuestion, BASE_TYPES, OPS } from '../js/generators.js';
 import { createWordPool } from '../js/words.js';
@@ -11,7 +11,7 @@ const ph = (s) => (Array.isArray(s) ? `array:${s.length}` : [...s.matchAll(/\{(\
 assert.deepEqual(Object.keys(STRINGS).sort(), ['de', 'en', 'es', 'fr', 'it', 'ru']);
 assert.deepEqual(LANGS.sort(), Object.keys(STRINGS).sort());
 for (const lang of Object.keys(STRINGS)) {
-    assert.ok(LANGUAGE_NAMES[lang] && ANSWER_KEYS[lang]);
+    assert.ok(LANGUAGE_NAMES[lang]);
     const s = STRINGS[lang];
     for (const k of Object.keys(en)) {
         assert.ok(k in s, `${lang}: missing key ${k}`);
