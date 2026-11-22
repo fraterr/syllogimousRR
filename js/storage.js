@@ -27,6 +27,7 @@ export const DEFAULTS = {
     negation: false, negationReminder: true, meta: false, stroop: false, oneAtATime: false, shuffleButtons: false,
     words: 'nonsense',
     sessionMinutes: 30, weeklyGoal: 3, autoNext: true, explainAlways: false,
+    program: false,
 };
 
 export const PRESETS = {
@@ -84,6 +85,7 @@ export function sanitizeSettings(raw) {
         weeklyGoal: clampInt(r.weeklyGoal, 1, 7, d.weeklyGoal),
         autoNext: bool(r.autoNext, d.autoNext),
         explainAlways: bool(r.explainAlways, d.explainAlways),
+        program: bool(r.program, d.program),
     };
     if (s.startLevel > s.maxLevel) s.startLevel = s.maxLevel;
     return s;
@@ -127,7 +129,11 @@ export function loadState() {
         const v = r.levels && r.levels[t];
         levels[t] = v ? { level: clampInt(v.level, MIN_LEVEL[t], MAX_LEVEL, MIN_LEVEL[t]), streak: clampInt(v.streak, 0, 10, 0) } : null;
     }
-    return { levels, score: clampInt(r.score, -1e9, 1e9, 0) };
+    return {
+        levels, score: clampInt(r.score, -1e9, 1e9, 0),
+        programStart: clampInt(r.programStart, 0, 1e15, 0),
+        programStage: clampInt(r.programStage, 1, 20, 1),
+    };
 }
 export const saveState = (st) => writeJSON(STATE_KEY, st);
 

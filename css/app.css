@@ -462,3 +462,12 @@ dialog h2 { font-size: 1.6rem; }
     *, *::before, *::after { transition: none !important; animation: none !important; }
 }
 .reduce-motion *, .reduce-motion *::before, .reduce-motion *::after { transition: none !important; animation: none !important; }
+
+/* guided programme */
+.program-block { border-top: 2px solid var(--rule); padding-top: .8rem; display: flex; flex-direction: column; gap: .35rem; }
+.program-block__title { color: var(--accent); }
+.program-block__desc { margin: 0; color: var(--text-2); }
+.program-block .btn { align-self: flex-start; }
+.program-notice { font-weight: 600; }
+.presets__desc { max-width: 46rem; margin: -.4rem 0 1rem; }
+@media (max-width: 760px) { .program-block { grid-column: 1 / -1; } }

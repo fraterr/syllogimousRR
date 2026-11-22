@@ -58,6 +58,10 @@ New:
 - Check-up: 20 fixed-difficulty questions, including types you do not usually train, without feedback,
   to measure progress beyond the trained levels.
 - History with filters; CSV export; JSON backup and restore; presets (Beginner, Intermediate, Expert).
+- Recommended programme (guided): starts with the relations used in relational-training studies
+  (same/opposite, more/less) without a clock, then adds a 30-second limit, premises one at a time,
+  negation and new question types in 7 stages. A stage advances after enough completed 30-minute
+  sessions (3, 6, 18, 21, 24, 27) and only while recent accuracy is at least 70%.
 
 ## Research basis
 

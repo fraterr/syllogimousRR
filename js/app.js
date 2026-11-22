@@ -13,6 +13,7 @@ import { updateLevel, currentLevel, chooseType, timeLimit } from './adaptive.js'
 import { summary, byCategory, sessionSeries, sessionsThisWeek } from './stats.js';
 import { lineChart, barList } from './charts.js';
 import { makeSortingTask, renderSorting, ruleText } from './wcst.js';
+import { stageSettings, nextStage, STAGE_COUNT } from './program.js';
 import { coin, shuffle, escapeHtml, median, clampInt, pick } from './util.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -111,7 +112,12 @@ function showView(view) {
     if (view === 'history') renderHistory();
     if (view === 'settings') renderSettings();
     if (view === 'about') renderAbout();
-    if (view === 'train') { renderTrainChrome(); resumeTimer(); }
+    if (view === 'train') {
+        renderTrainChrome();
+        // settings changed while away: drop a question of a type that is no longer enabled
+        if (app.phase === 'question' && app.q && !app.bench && !playableTypes(app.settings).includes(app.q.type)) nextQuestion();
+        else resumeTimer();
+    }
     $('#main').focus({ preventScroll: true });
 }
 
@@ -149,9 +155,51 @@ function updateStatusbar() {
     $('.stat--week .stat__value', v).innerHTML = `${sessionsThisWeek(app.sessions)}<small> / ${app.settings.weeklyGoal}</small>`;
     $('.stat--week', v).title = t('train.weekValue', { n: sessionsThisWeek(app.sessions), goal: app.settings.weeklyGoal });
     $('.end-session', v).hidden = !app.session;
+    updateProgramBlock();
     const bb = $('.bench-banner', v);
     bb.hidden = !app.bench;
     if (app.bench) $('.bench-banner__text', v).textContent = t('bench.counter', { i: Math.min(app.bench.index + 1, BENCH_SIZE), n: BENCH_SIZE });
+}
+
+// ---------------------------------------------------------------- guided programme
+
+function startProgram() {
+    app.state.programStart = Date.now();
+    app.state.programStage = 1;
+    app.settings = stageSettings(1, app.settings);
+    persistSettings();
+    saveState(app.state);
+}
+
+function benchDue() {
+    const last = app.benchmarks[app.benchmarks.length - 1];
+    if (app.settings.program && (!last || last.t < app.state.programStart)) return true;
+    return !last || Date.now() - last.t > 14 * 864e5;
+}
+
+/** After an answer: move to the next stage when sessions and accuracy allow it. */
+function checkProgram() {
+    if (!app.settings.program) return 0;
+    const cur = app.state.programStage || 1;
+    const next = nextStage(cur, app.sessions, app.answers, app.state.programStart);
+    if (next === cur) return 0;
+    app.state.programStage = next;
+    app.settings = stageSettings(next, app.settings);
+    persistSettings();
+    saveState(app.state);
+    return next;
+}
+
+function updateProgramBlock() {
+    const box = $('.program-block');
+    box.hidden = !app.settings.program;
+    if (!app.settings.program) return;
+    const n = app.state.programStage || 1;
+    $('.program-block__title', box).textContent = t('program.stage', { n, total: STAGE_COUNT });
+    $('.program-block__desc', box).textContent = t('program.s' + n);
+    const b = $('.program-bench', box);
+    b.hidden = !benchDue() || !!app.bench;
+    b.textContent = t('bench.start');
 }
 
 function makeCtx() {
@@ -385,6 +433,7 @@ async function answer(value, extra = {}) {
     };
     app.answers.push(record);
     put('answers', record);
+    const programStage = app.bench ? 0 : checkProgram();
 
     if (app.bench) {
         app.bench.answers.push(record);
@@ -393,7 +442,7 @@ async function answer(value, extra = {}) {
         return;
     }
 
-    const fb = { correct, timedOut, levelChange, q, record };
+    const fb = { correct, timedOut, levelChange, q, record, programStage };
     app.lastFeedback = fb;
     renderFeedback(fb);
     updateStatusbar();
@@ -404,7 +453,7 @@ async function answer(value, extra = {}) {
         showSummary(session);
         return;
     }
-    if (correct && app.settings.autoNext && !app.settings.explainAlways && !isSort) {
+    if (correct && app.settings.autoNext && !app.settings.explainAlways && !isSort && !programStage) {
         app.autoNextHandle = setTimeout(() => { if (app.phase === 'feedback' && app.view === 'train') nextQuestion(); }, app.settings.reduceMotion ? 1200 : 900);
     }
 }
@@ -421,6 +470,7 @@ function renderFeedback(fb) {
     } else {
         html += `<p>${escapeHtml(t('fb.answer', { answer: answerWord(q.isValid) }))}</p>`;
     }
+    if (fb.programStage) html += `<p class="notice program-notice">${escapeHtml(t('program.advanced', { n: fb.programStage, total: STAGE_COUNT, desc: t('program.s' + fb.programStage) }))}</p>`;
     if (levelChange) html += `<p class="feedback__level">${escapeHtml(t(levelChange > 0 ? 'fb.levelUp' : 'fb.levelDown', { n: app.state.levels[q.type].level }))}</p>`;
     const showExplain = q.type !== 'sorting' && (!correct || app.settings.explainAlways);
     if (showExplain) {
@@ -434,7 +484,7 @@ function renderFeedback(fb) {
     $('.btn--true').disabled = true; $('.btn--false').disabled = true;
     updateStepper();
     announce(`${status}. ${q.type === 'sorting' ? '' : t('fb.answer', { answer: answerWord(q.isValid) })}`);
-    if (!(correct && app.settings.autoNext && !app.settings.explainAlways)) $('.next-btn', box).focus({ preventScroll: false });
+    if (!(correct && app.settings.autoNext && !app.settings.explainAlways) || fb.programStage) $('.next-btn', box).focus({ preventScroll: false });
 }
 
 // ---------------------------------------------------------------- sessions
@@ -617,8 +667,10 @@ function renderSettings() {
     const warnings = settingsWarnings(s);
     v.innerHTML = `<h1>${escapeHtml(t('set.title'))}</h1>
       <div class="presets"><span class="presets__label">${escapeHtml(t('set.presets'))}:</span>
+        <button type="button" class="btn btn--small btn--primary" data-preset="recommended" aria-describedby="preset-rec-d">${escapeHtml(t('preset.recommended'))}</button>
         ${Object.keys(PRESETS).map(p => `<button type="button" class="btn btn--small" data-preset="${p}">${escapeHtml(t('preset.' + p))}</button>`).join('')}
       </div>
+      <p class="field__desc presets__desc" id="preset-rec-d">${escapeHtml(t('set.programDesc'))}</p>
       <div class="warnings" role="status">${warnings.map(w => `<p class="notice">${escapeHtml(t(w))}</p>`).join('')}</div>
       <div class="tabs" role="tablist" aria-label="${escapeHtml(t('set.title'))}">
         ${tabs.map(tb => `<button type="button" role="tab" id="tab-${tb}" aria-controls="panel-${tb}" aria-selected="${tb === settingsTab}" tabindex="${tb === settingsTab ? 0 : -1}">${escapeHtml(t('set.tab.' + tb))}</button>`).join('')}
@@ -626,8 +678,8 @@ function renderSettings() {
       ${tabs.map(tb => `<div class="tabpanel card" role="tabpanel" id="panel-${tb}" aria-labelledby="tab-${tb}" ${tb === settingsTab ? '' : 'hidden'}>${panel(tb)}</div>`).join('')}`;
 
     for (const b of $$('[data-preset]', v)) b.onclick = () => {
-        Object.assign(app.settings, PRESETS[b.dataset.preset]);
-        persistSettings();
+        if (b.dataset.preset === 'recommended') startProgram();
+        else { Object.assign(app.settings, PRESETS[b.dataset.preset], { program: false }); persistSettings(); }
         renderSettings();
         announce(t('preset.applied', { name: t('preset.' + b.dataset.preset) }));
     };
@@ -695,7 +747,8 @@ function panel(tab) {
             + ctl.toggle('shuffleButtons', 'set.shuffleButtons');
     }
     if (tab === 'sessions') {
-        return `<p class="muted">${escapeHtml(t('set.sessionDesc'))}</p>`
+        return ctl.toggle('program', 'set.program', 'set.programDesc')
+            + `<p class="muted">${escapeHtml(t('set.sessionDesc'))}</p>`
             + ctl.number('sessionMinutes', 'set.sessionMinutes', 5, 120)
             + ctl.number('weeklyGoal', 'set.weeklyGoal', 1, 7)
             + ctl.toggle('autoNext', 'set.autoNext')
@@ -734,7 +787,13 @@ function bindSettingInputs(v) {
     };
     for (const inp of $$('[data-key]', v)) {
         const key = inp.dataset.key;
-        if (inp.type === 'checkbox') inp.onchange = () => { app.settings[key] = inp.checked; after(key); };
+        if (key === 'program') inp.onchange = () => {
+            if (inp.checked) startProgram(); else { app.settings.program = false; persistSettings(); }
+            renderSettings();
+            document.getElementById('set-program')?.focus();
+            announce(t('set.saved'));
+        };
+        else if (inp.type === 'checkbox') inp.onchange = () => { app.settings[key] = inp.checked; after(key); };
         else if (inp.type === 'number') inp.onchange = () => {
             const min = +inp.min, max = +inp.max;
             app.settings[key] = clampInt(inp.value, min, max, DEFAULTS[key]);
@@ -873,6 +932,8 @@ async function boot() {
     $('.end-session').onclick = endSession;
     $('.bench-abort').onclick = abortBench;
     $('.theme-toggle').onclick = toggleTheme;
+    $('.program-bench').onclick = startBench;
+    if (app.settings.program && !app.state.programStart) startProgram();
     if (window.matchMedia) window.matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', updateThemeToggle);
     document.addEventListener('keydown', onKey);
     document.addEventListener('visibilitychange', () => { if (document.hidden) pauseTimer(); else if (app.view === 'train') resumeTimer(); });

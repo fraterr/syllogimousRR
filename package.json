@@ -6,7 +6,7 @@
   "type": "module",
   "license": "CC-BY-NC-3.0",
   "scripts": {
-    "test": "node tests/generators.test.mjs && node tests/i18n.test.mjs",
+    "test": "node tests/generators.test.mjs && node tests/i18n.test.mjs && node tests/program.test.mjs",
     "start": "python3 -m http.server 8000"
   }
 }
