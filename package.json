@@ -1,0 +1,12 @@
+{
+  "name": "syllogimous-rr",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Relational reasoning trainer, rewritten from Syllogimous v3.",
+  "type": "module",
+  "license": "CC-BY-NC-3.0",
+  "scripts": {
+    "test": "node tests/generators.test.mjs && node tests/i18n.test.mjs",
+    "start": "python3 -m http.server 8000"
+  }
+}

@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Syllogimous RR</title>
+    <meta name="description" content="Relational reasoning trainer: distinction, comparison, time, syllogisms, space, analogies and logic.">
+    <meta name="theme-color" content="#1d5fc4">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <link rel="apple-touch-icon" href="icons/icon-192x192.png">
+    <link rel="stylesheet" href="css/app.css">
+    <script type="module" src="js/app.js"></script>
+</head>
+<body>
+    <a class="skip" href="#main">Skip to main content</a>
+    <header class="topbar">
+        <div class="topbar__inner">
+            <div class="brand">
+                <span class="brand__mark" aria-hidden="true">∴</span>
+                <span class="brand__text"><span class="brand__name">Syllogimous RR</span><span class="brand__tag">Relational reasoning trainer</span></span>
+            </div>
+            <nav aria-label="Main">
+                <ul class="nav">
+                    <li><button type="button" data-view="train" aria-current="page">Train</button></li>
+                    <li><button type="button" data-view="progress">Progress</button></li>
+                    <li><button type="button" data-view="history">History</button></li>
+                    <li><button type="button" data-view="settings">Settings</button></li>
+                    <li><button type="button" data-view="about">About</button></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main id="main" tabindex="-1">
+        <section id="view-train" class="view">
+            <h1 class="sr-only">Train</h1>
+            <div class="statusbar">
+                <div class="stat stat--score"><span class="stat__label"></span><span class="stat__value"></span></div>
+                <div class="stat stat--acc"><span class="stat__label"></span><span class="stat__value"></span></div>
+                <div class="stat stat--session"><span class="stat__label"></span><span class="stat__value"></span></div>
+                <div class="stat stat--week"><span class="stat__label"></span><span class="stat__value"></span></div>
+                <button type="button" class="btn btn--small end-session" hidden></button>
+            </div>
+            <div class="bench-banner notice" hidden>
+                <span class="bench-banner__text"></span>
+                <button type="button" class="btn btn--small bench-abort"></button>
+            </div>
+
+            <article class="card question" aria-labelledby="q-type">
+                <p class="question__empty" hidden></p>
+                <div class="question__body">
+                    <header class="question__meta">
+                        <span class="badge question__type" id="q-type"></span>
+                        <span class="question__level muted"></span>
+                    </header>
+                    <div class="timer" role="progressbar" aria-valuemin="0" hidden>
+                        <div class="timer__track"><div class="timer__bar"></div></div>
+                        <span class="timer__text" aria-hidden="true"></span>
+                    </div>
+                    <div class="question__text">
+                        <p class="neg-reminder" hidden></p>
+                        <h2 class="label label--premises"></h2>
+                        <ol class="premises"></ol>
+                        <div class="stepper" hidden>
+                            <button type="button" class="btn btn--small step-prev"></button>
+                            <span class="step-counter" aria-live="polite"></span>
+                            <button type="button" class="btn btn--small step-next"></button>
+                        </div>
+                        <div class="conclusion-block">
+                            <h2 class="label label--conclusion"></h2>
+                            <div class="conclusion"></div>
+                            <p class="legend small" hidden></p>
+                            <p class="question__prompt"></p>
+                            <div class="answers">
+                                <button type="button" class="btn btn--answer btn--true"><span class="btn__text"></span> <span class="kbd" aria-hidden="true"></span></button>
+                                <button type="button" class="btn btn--answer btn--false"><span class="btn__text"></span> <span class="kbd" aria-hidden="true"></span></button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="sorting-host" hidden></div>
+                </div>
+            </article>
+
+            <div class="feedback card" hidden aria-live="off"></div>
+            <p class="keys muted small"></p>
+        </section>
+
+        <section id="view-progress" class="view" hidden></section>
+        <section id="view-history" class="view" hidden></section>
+        <section id="view-settings" class="view" hidden></section>
+        <section id="view-about" class="view" hidden></section>
+    </main>
+
+    <dialog id="summary" aria-labelledby="summary-title"></dialog>
+    <div id="live" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+
+    <footer class="footer">
+        <p class="credits small muted"></p>
+    </footer>
+</body>
+</html>
