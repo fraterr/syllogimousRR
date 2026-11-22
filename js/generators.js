@@ -478,8 +478,12 @@ export function relationKey(model, x, y) {
 function genAnalogy(n, ctx) {
     const bases = ANALOGY_BASES.filter(t => ctx.settings.enabled.includes(t));
     const baseType = pick(bases.length ? bases : ANALOGY_BASES);
-    const wantSame = coin();
-    for (let attempt = 0; attempt < 30; attempt++) {
+    // Some small spatial maps admit no two disjoint pairs with the same
+    // direction (or none with different ones): after many tries, accept the
+    // other kind. The answer stays a fair coin either way.
+    const first = coin();
+    for (let attempt = 0; attempt < 120; attempt++) {
+        const wantSame = attempt < 60 ? first : !first;
         const base = generateBase(baseType, n, ctx);
         const words = base.model.kind === 'space' ? base.model.words
             : base.model.kind === 'linear' ? base.model.order
