@@ -11,14 +11,14 @@ const el = (name, attrs = {}) => {
 /**
  * Line chart for a 0..1 series. points: [{label, value, detail}]
  */
-export function lineChart(container, points, { ariaLabel, format = (v) => Math.round(v * 100) + '%' } = {}) {
+export function lineChart(container, points, { ariaLabel, format = (v) => Math.round(v * 100) + '%', max = 1 } = {}) {
     container.innerHTML = '';
     container.classList.add('chart');
     const W = 640, H = 220, L = 44, R = 16, T = 14, B = 28;
     const svg = el('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': ariaLabel, tabindex: '0', class: 'chart__svg' });
     const x = (i) => L + (points.length === 1 ? (W - L - R) / 2 : (i * (W - L - R)) / (points.length - 1));
-    const y = (v) => T + (1 - v) * (H - T - B);
-    for (const g of [0, 0.5, 1]) {
+    const y = (v) => T + (1 - v / max) * (H - T - B);
+    for (const g of [0, max / 2, max]) {
         svg.append(el('line', { x1: L, x2: W - R, y1: y(g), y2: y(g), class: 'chart__grid' }));
         const lab = el('text', { x: L - 8, y: y(g) + 4, class: 'chart__axis', 'text-anchor': 'end' });
         lab.textContent = format(g);
@@ -97,4 +97,55 @@ export function barList(container, rows) {
         row.append(label, track, val);
         container.append(row);
     }
+}
+
+/** Column chart (single series): bars [{label, value, detail}], values >= 0. */
+export function columnChart(container, bars, { ariaLabel, format = (v) => String(v) } = {}) {
+    container.innerHTML = '';
+    container.classList.add('chart');
+    const W = 640, H = 220, L = 44, R = 16, T = 14, B = 28;
+    const max = Math.max(1, ...bars.map(b => b.value));
+    const nice = max <= 10 ? 10 : Math.ceil(max / 30) * 30;
+    const L2 = 64; // room for labels such as "120 min"
+    const svg = el('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': ariaLabel, class: 'chart__svg' });
+    const y = (v) => T + (1 - v / nice) * (H - T - B);
+    for (const g of [0, nice / 2, nice]) {
+        svg.append(el('line', { x1: L2, x2: W - R, y1: y(g), y2: y(g), class: 'chart__grid' }));
+        const lab = el('text', { x: L2 - 8, y: y(g) + 4, class: 'chart__axis', 'text-anchor': 'end' });
+        lab.textContent = format(g);
+        svg.append(lab);
+    }
+    const slot = (W - L2 - R) / bars.length;
+    const bw = Math.max(4, slot - 6);
+    const tip = document.createElement('div');
+    tip.className = 'chart__tip';
+    tip.hidden = true;
+    bars.forEach((b, i) => {
+        const x = L2 + i * slot + (slot - bw) / 2;
+        const h = Math.max(b.value > 0 ? 2 : 0, (H - T - B) * (b.value / nice));
+        const g = el('g', { class: 'chart__col', tabindex: '0', role: 'img', 'aria-label': `${b.label}: ${format(b.value)}` });
+        g.append(el('rect', { x: L2 + i * slot, y: T, width: slot, height: H - T - B, class: 'chart__hit' }));
+        g.append(el('rect', { x, y: y(0) - h, width: bw, height: h, rx: 2, class: 'chart__bar' }));
+        const show = () => {
+            tip.replaceChildren();
+            const strong = document.createElement('strong'); strong.textContent = format(b.value);
+            const small = document.createElement('span'); small.textContent = b.label + (b.detail ? ' · ' + b.detail : '');
+            tip.append(strong, small);
+            tip.hidden = false;
+            const box = svg.getBoundingClientRect();
+            tip.style.left = Math.min(Math.max(((x + bw / 2) / W) * box.width, 60), box.width - 60) + 'px';
+            tip.style.top = ((y(b.value) / H) * box.height - 8) + 'px';
+        };
+        g.addEventListener('pointerenter', show);
+        g.addEventListener('focus', show);
+        g.addEventListener('pointerleave', () => { tip.hidden = true; });
+        g.addEventListener('blur', () => { tip.hidden = true; });
+        svg.append(g);
+    });
+    for (const i of [0, bars.length - 1]) {
+        const lab = el('text', { x: L2 + i * slot + slot / 2, y: H - 8, class: 'chart__axis', 'text-anchor': i === 0 ? 'start' : 'end' });
+        lab.textContent = bars[i].label;
+        svg.append(lab);
+    }
+    container.append(svg, tip);
 }

@@ -59,6 +59,16 @@ New:
 - Check-up: 20 fixed-difficulty questions, including types you do not usually train, without feedback,
   to measure progress beyond the trained levels.
 - History with filters; CSV export; JSON backup and restore; presets (Beginner, Intermediate, Expert).
+- Guide: how to build the mental map for each kind of question, with worked examples (checked by the
+  tests) and two unscored practice questions per kind; a first-run hint points newcomers to it.
+- Installable app (manifest + service worker): works offline, asks the browser to keep the data
+  permanently, and suggests adding it to the Home Screen on iPhone/iPad, where Safari may otherwise
+  erase site data after 7 days without use. A banner offers a reload when a new version is ready.
+- Progress also shows training minutes per week, seconds per premise per session, and an external
+  test log (scores on a test you do not train on, with the change since the first result, the
+  training done in between, and a warning when retakes are less than 3 months apart).
+- Phones: answer buttons pinned at the bottom during a question, the screen stays on during a
+  session (optional), optional vibration on answers.
 - Recommended programme (guided): starts with the relations used in relational-training studies
   (same/opposite, more/less) without a clock and with premises in order, then adds a 30-second
   limit and hidden premises, half-scrambled premises with negation and new types, premises one at a
@@ -86,7 +96,8 @@ SIL Open Font License (see `fonts/`).
 
 ```bash
 python3 -m http.server 8000   # then open http://localhost:8000
-npm test                      # generator correctness (independent solvers) and translation checks
+npm test                      # generator correctness (independent solvers), translations, programme, service worker
+npm run sw                    # after changing any file: refresh the offline cache list and version
 ```
 
 `tests/generators.test.mjs` re-derives every answer from the premises alone (relation propagation,

@@ -48,6 +48,7 @@ export function stageSettings(stage, current) {
         lang: current.lang || DEFAULTS.lang, theme: current.theme || DEFAULTS.theme,
         textSize: current.textSize || DEFAULTS.textSize,
         reduceMotion: !!current.reduceMotion, negSymbol: !!current.negSymbol,
+        keepAwake: current.keepAwake !== false, vibrate: !!current.vibrate,
         ...structuredClone(BASE),
         program: true,
     };

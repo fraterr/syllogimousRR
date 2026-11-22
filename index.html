@@ -7,7 +7,10 @@
     <meta name="description" content="Relational reasoning trainer: distinction, comparison, time, syllogisms, space, analogies and logic.">
     <meta name="theme-color" content="#2F6F6A">
     <link rel="icon" type="image/png" href="favicon.png">
-    <link rel="apple-touch-icon" href="icons/icon-192x192.png">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+    <link rel="manifest" href="manifest.webmanifest">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Syllogimous">
     <link rel="preload" href="fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="preload" href="fonts/space-grotesk-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="stylesheet" href="css/app.css">
@@ -24,6 +27,7 @@
             <nav aria-label="Main">
                 <ul class="nav">
                     <li><button type="button" data-view="train" aria-current="page">Train</button></li>
+                    <li><button type="button" data-view="guide">Guide</button></li>
                     <li><button type="button" data-view="progress">Progress</button></li>
                     <li><button type="button" data-view="history">History</button></li>
                     <li><button type="button" data-view="settings">Settings</button></li>
@@ -39,9 +43,15 @@
         </div>
     </header>
 
+    <div class="update-banner" role="status" hidden>
+        <span class="update-banner__text"></span>
+        <button type="button" class="btn btn--small update-banner__btn"></button>
+    </div>
+
     <main id="main" tabindex="-1">
         <section id="view-train" class="view">
             <h1 class="sr-only">Train</h1>
+            <div class="notices"></div>
             <div class="bench-banner notice" hidden>
                 <span class="bench-banner__text"></span>
                 <button type="button" class="btn btn--small bench-abort"></button>
@@ -113,6 +123,7 @@
             <p class="keys muted small"></p>
         </section>
 
+        <section id="view-guide" class="view" hidden></section>
         <section id="view-progress" class="view" hidden></section>
         <section id="view-history" class="view" hidden></section>
         <section id="view-settings" class="view" hidden></section>

@@ -502,3 +502,52 @@ dialog h2 { font-size: 1.6rem; }
 }
 @media (prefers-reduced-motion: reduce) { .tea:hover, .tea:active { transform: none; } }
 .reduce-motion .tea:hover, .reduce-motion .tea:active { transform: none; }
+
+/* ---------- guide ---------- */
+.guide-kind h2 { font-size: 1.35rem; }
+.guide-example { border-left: 3px solid var(--accent); padding: .2rem 0 .2rem 1rem; margin: 1rem 0; }
+.guide-example .eyebrow { margin: .6rem 0 .3rem; }
+.guide-practice { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; margin-top: 1rem; }
+.guide-q { width: 100%; }
+.guide-answers { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: .8rem 0; }
+.guide-answers .btn--answer { min-height: 52px; font-size: 1.1rem; }
+.guide-verdict { font-family: var(--display); font-weight: 700; font-size: 1.15rem; }
+.guide-verdict.is-right { color: var(--right); }
+.guide-verdict.is-wrong { color: var(--wrong); }
+
+/* ---------- notices & update banner ---------- */
+.notices { display: flex; flex-direction: column; gap: .75rem; margin-bottom: 1.25rem; }
+.notices:empty { display: none; }
+.notice--hint { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .6rem 1rem; }
+.notice--hint p { margin: 0; flex: 1 1 22rem; }
+.update-banner { display: flex; align-items: center; justify-content: center; gap: 1rem; padding: .5rem 16px; background: var(--accent); color: var(--accent-ink); }
+.update-banner .btn { border-color: var(--accent-ink); }
+
+/* ---------- forms (external tests) ---------- */
+input[type="text"], input[type="date"], input:not([type]) {
+    font: inherit; color: var(--text); background: var(--surface); border: 2px solid var(--rule);
+    border-radius: 0; padding: .4rem .6rem; min-height: 42px; width: 100%;
+}
+.tl-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: 0 1rem; }
+.tl-grid input[type="number"] { width: 100%; }
+.tl-form { margin-bottom: 1rem; }
+.testlog h3 { margin-top: 1.5rem; }
+.testlog .data { width: 100%; }
+.tl-soon { color: var(--wrong); font-weight: 700; }
+.chart__bar { fill: var(--series-1); }
+.chart__hit { fill: transparent; }
+.chart__col:hover .chart__bar, .chart__col:focus .chart__bar { opacity: .8; }
+.chart__col:focus { outline: none; }
+.chart__col:focus-visible .chart__hit { stroke: var(--focus); stroke-width: 2; }
+.storage-status { margin-bottom: 1rem; }
+
+/* ---------- phones: answer buttons within thumb reach ---------- */
+@media (max-width: 760px) {
+    body[data-phase="question"] #view-train .answers {
+        position: fixed; left: 0; right: 0; bottom: 0; z-index: 5; margin: 0;
+        background: var(--bg); border-top: 2px solid var(--rule);
+        padding: .6rem 16px calc(.6rem + env(safe-area-inset-bottom, 0px));
+    }
+    body[data-phase="question"] #view-train { padding-bottom: 96px; }
+    .testlog .data { display: block; overflow-x: auto; }
+}

@@ -7,13 +7,15 @@ import { explain, answerWord } from './explain.js';
 import { createWordPool } from './words.js';
 import {
     loadSettings, saveSettings, loadState, saveState, sanitizeSettings, settingsWarnings, playableTypes,
-    PRESETS, DEFAULTS, openDB, getAll, put, clearAll, compact, importBackup, storageOk,
+    PRESETS, DEFAULTS, openDB, getAll, put, remove, clearAll, compact, importBackup, storageOk,
 } from './storage.js';
 import { updateLevel, currentLevel, chooseType, timeLimit } from './adaptive.js';
-import { summary, byCategory, sessionSeries, sessionsThisWeek } from './stats.js';
-import { lineChart, barList } from './charts.js';
+import { summary, byCategory, sessionSeries, sessionsThisWeek, weeklyMinutes, secondsPerPremise, minutesBetween } from './stats.js';
+import { lineChart, barList, columnChart } from './charts.js';
 import { makeSortingTask, renderSorting, ruleText } from './wcst.js';
 import { stageSettings, nextStage, STAGE_COUNT } from './program.js';
+import { renderGuide } from './guide.js';
+import { registerServiceWorker, requestPersistence, isPersisted, canInstall, promptInstall, onInstallChange, isStandalone, isIOS, keepAwake, vibrate } from './pwa.js';
 import { coin, shuffle, escapeHtml, median, clampInt, pick } from './util.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -26,7 +28,7 @@ const BENCH_TYPES = ['distinction', 'comparison', 'temporal', 'syllogism', 'dire
 const app = {
     settings: loadSettings(),
     state: loadState(),
-    answers: [], sessions: [], benchmarks: [],
+    answers: [], sessions: [], benchmarks: [], tests: [],
     view: 'train',
     q: null,             // current question (or sorting task)
     phase: 'idle',       // idle | question | feedback
@@ -121,6 +123,8 @@ function showView(view) {
     if (view === 'history') renderHistory();
     if (view === 'settings') renderSettings();
     if (view === 'about') renderAbout();
+    if (view === 'guide') renderGuide($('#view-guide'), lang(), { onTrain: () => showView('train') });
+    updateWakeLock();
     if (view === 'train') {
         renderTrainChrome();
         // settings changed while away: drop a question of a type that is no longer enabled
@@ -167,6 +171,7 @@ function updateStatusbar() {
     $('.stat--week', v).title = t('train.weekValue', { n: sessionsThisWeek(app.sessions), goal: app.settings.weeklyGoal });
     $('.end-session', v).hidden = !app.session;
     updateProgramBlock();
+    renderNotices();
     const bb = $('.bench-banner', v);
     bb.hidden = !app.bench;
     if (app.bench) $('.bench-banner__text', v).textContent = t('bench.counter', { i: Math.min(app.bench.index + 1, BENCH_SIZE), n: BENCH_SIZE });
@@ -213,6 +218,41 @@ function updateProgramBlock() {
     b.textContent = t('bench.start');
 }
 
+// ---------------------------------------------------------------- notices & device
+
+function dismissed() {
+    try { return JSON.parse(localStorage.getItem('srr-dismissed') || '{}') || {}; } catch { return {}; }
+}
+function dismiss(id) {
+    const d = dismissed(); d[id] = true;
+    try { localStorage.setItem('srr-dismissed', JSON.stringify(d)); } catch { /* ignore */ }
+    renderNotices();
+}
+
+/** First-run hints: the guide for newcomers, Home Screen install on iOS. */
+function renderNotices() {
+    const box = $('.notices');
+    const trained = app.answers.filter(a => !a.bench).length;
+    const d = dismissed();
+    const items = [];
+    if (trained < 10 && !d.guide) items.push({ id: 'guide', text: t('notice.guide'), action: t('notice.openGuide'), run: () => showView('guide') });
+    if (isIOS() && !isStandalone() && trained >= 20 && !d.ios) items.push({ id: 'ios', text: t('notice.ios') });
+    const key = items.map(i => i.id).join(',') + '|' + lang();
+    if (box.dataset.key === key) return;
+    box.dataset.key = key;
+    box.innerHTML = items.map(i => `<div class="notice notice--hint" data-id="${i.id}"><p>${escapeHtml(i.text)}</p><div class="btn-row">${i.action ? `<button type="button" class="btn btn--small btn--primary" data-act="go">${escapeHtml(i.action)}</button>` : ''}<button type="button" class="btn btn--small" data-act="dismiss">${escapeHtml(t('btn.dismiss'))}</button></div></div>`).join('');
+    for (const el of $$('.notice--hint', box)) {
+        const item = items.find(i => i.id === el.dataset.id);
+        el.querySelector('[data-act="dismiss"]').onclick = () => dismiss(item.id);
+        const go = el.querySelector('[data-act="go"]');
+        if (go) go.onclick = () => { dismiss(item.id); item.run(); };
+    }
+}
+
+function updateWakeLock() {
+    keepAwake(app.settings.keepAwake && app.view === 'train' && !document.hidden && !!(app.session || app.bench));
+}
+
 function makeCtx() {
     const s = app.settings;
     return {
@@ -250,6 +290,7 @@ function nextQuestion() {
     }
     app.step = 0;
     app.phase = 'question';
+    document.body.dataset.phase = 'question';
     renderQuestion(true);
     const limit = app.bench ? 60 : timeLimit(type, level, app.settings, app.answers);
     startTimer(limit);
@@ -258,7 +299,7 @@ function nextQuestion() {
 }
 
 function renderEmpty() {
-    app.q = null; app.phase = 'idle';
+    app.q = null; app.phase = 'idle'; document.body.dataset.phase = 'idle';
     const card = $('.question');
     card.hidden = false;
     $('.question__body').hidden = true;
@@ -445,6 +486,7 @@ function touchSession(rt) {
 async function answer(value, extra = {}) {
     if (app.phase !== 'question') return; // ignores double clicks and late timeouts
     app.phase = 'feedback';
+    document.body.dataset.phase = 'feedback';
     stopTimer();
     if (app.sorting && value === null) app.sorting.stop();
     const q = app.q;
@@ -472,6 +514,9 @@ async function answer(value, extra = {}) {
     app.answers.push(record);
     put('answers', record);
     const programStage = app.bench ? 0 : checkProgram();
+    if (!app.persistAsked) { app.persistAsked = true; requestPersistence(); }
+    if (app.settings.vibrate && !app.bench) vibrate(correct ? 15 : [40, 60, 40]);
+    updateWakeLock();
 
     if (app.bench) {
         app.bench.answers.push(record);
@@ -582,7 +627,7 @@ function finishBench() {
     const rec = { t: Date.now(), score, median: med, n: b.answers.length };
     app.benchmarks.push(rec);
     put('benchmarks', rec);
-    app.q = null; app.phase = 'idle';
+    app.q = null; app.phase = 'idle'; document.body.dataset.phase = 'idle';
     $('.question__body').hidden = true;
     $('.question__empty').hidden = false;
     $('.question__empty').textContent = t('bench.done', { score: Math.round(score * 100), time: fmtSec(med) });
@@ -608,6 +653,8 @@ function renderProgress() {
     const series = sessionSeries(app.answers, app.sessions);
     const lastBench = app.benchmarks[app.benchmarks.length - 1];
     const due = !lastBench || Date.now() - lastBench.t > 14 * 864e5;
+    const weekly = weeklyMinutes(app.sessions);
+    const perPremise = secondsPerPremise(app.answers, app.sessions);
 
     v.innerHTML = `<h1>${escapeHtml(t('prog.title'))}</h1>
       <div class="kpis">
@@ -631,6 +678,17 @@ function renderProgress() {
         : `<p class="muted">${escapeHtml(t('prog.empty'))}</p>`}
       </section>
       <section class="card">
+        <h2>${escapeHtml(t('prog.weekly'))}</h2>
+        <div class="weekly-chart"></div>
+        <details><summary>${escapeHtml(t('prog.table'))}</summary><table class="data"><thead><tr><th scope="col">${escapeHtml(t('prog.date'))}</th><th scope="col">${escapeHtml(t('prog.minutes', { n: '' }).trim() || 'min')}</th></tr></thead><tbody>${weekly.map(w => `<tr><td>${escapeHtml(t('prog.weekOf', { date: fmtDate(w.t) }))}</td><td>${w.minutes}</td></tr>`).join('')}</tbody></table></details>
+      </section>
+      <section class="card">
+        <h2>${escapeHtml(t('prog.perPremise'))}</h2>
+        ${perPremise.length ? `<div class="premise-chart"></div>
+        <details><summary>${escapeHtml(t('prog.table'))}</summary><table class="data"><thead><tr><th scope="col">${escapeHtml(t('prog.date'))}</th><th scope="col">${escapeHtml(t('prog.secPerPremise'))}</th></tr></thead><tbody>${perPremise.map(s => `<tr><td>${escapeHtml(fmtDateTime(s.t))}</td><td>${fmtSec(s.value)}</td></tr>`).join('')}</tbody></table></details>`
+        : `<p class="muted">${escapeHtml(t('prog.empty'))}</p>`}
+      </section>
+      <section class="card">
         <h2>${escapeHtml(t('bench.title'))}</h2>
         <p>${escapeHtml(t('bench.desc'))}</p>
         <p class="${due ? 'notice' : 'muted'}">${escapeHtml(lastBench ? t('bench.last', { date: fmtDate(lastBench.t) }) : '')} ${due ? escapeHtml(t('bench.due')) : ''}</p>
@@ -646,6 +704,68 @@ function renderProgress() {
     if (series.length) lineChart($('.session-chart', v), series.map((s, i) => ({ label: fmtDate(s.t), value: s.value, detail: `${t('prog.session', { n: i + 1 })} · ${s.n} ${t('prog.col.answers').toLowerCase()}` })), { ariaLabel: t('prog.sessions') });
     if (app.benchmarks.length) lineChart($('.bench-chart', v), app.benchmarks.map(b => ({ label: fmtDate(b.t), value: b.score, detail: t('unit.s', { n: fmtSec(b.median) }) })), { ariaLabel: t('prog.benchmark') });
     $('.bench-start', v).onclick = startBench;
+    columnChart($('.weekly-chart', v), weekly.map(w => ({ label: fmtDate(w.t), value: w.minutes, detail: t('prog.weekOf', { date: fmtDate(w.t) }) })), { ariaLabel: t('prog.weekly'), format: (n) => t('prog.minutes', { n: Math.round(n) }) });
+    if (perPremise.length) {
+        const maxS = Math.max(5, Math.ceil(Math.max(...perPremise.map(p => p.value))));
+        lineChart($('.premise-chart', v), perPremise.map(p => ({ label: fmtDate(p.t), value: p.value })), { ariaLabel: t('prog.perPremise'), max: maxS, format: (n) => t('unit.s', { n: fmtSec(n) }) });
+    }
+    v.append(renderTestLog());
+}
+
+// ---------------------------------------------------------------- external tests
+
+function renderTestLog() {
+    const sec = document.createElement('section');
+    sec.className = 'card testlog';
+    const names = [...new Set(app.tests.map(r => r.name))];
+    const today = new Date().toISOString().slice(0, 10);
+    const groups = names.map(name => {
+        const rows = app.tests.filter(r => r.name === name).sort((a, b) => a.t - b.t);
+        return `<h3>${escapeHtml(name)}</h3>
+          <table class="data"><thead><tr><th scope="col">${escapeHtml(t('tl.date'))}</th><th scope="col">${escapeHtml(t('tl.score'))}</th><th scope="col">${escapeHtml(t('tl.change'))}</th><th scope="col">${escapeHtml(t('tl.training'))}</th><th scope="col">${escapeHtml(t('tl.notes'))}</th><th scope="col"><span class="sr-only">${escapeHtml(t('tl.delete'))}</span></th></tr></thead>
+          <tbody>${rows.map((r, i) => {
+            const prev = rows[i - 1];
+            const diff = i === 0 ? t('tl.first') : (r.score - rows[0].score > 0 ? '+' : '') + (Math.round((r.score - rows[0].score) * 100) / 100).toLocaleString(lang());
+            const soon = prev && r.t - prev.t < 90 * 864e5;
+            const trained = prev ? t('prog.minutes', { n: minutesBetween(app.sessions, prev.t, r.t) }) : '–';
+            return `<tr><td>${escapeHtml(fmtDate(r.t))}</td><td>${escapeHtml(String(r.score))}</td><td>${escapeHtml(diff)}${soon ? ' <span class="tl-soon" title="' + escapeHtml(t('tl.tooSoon')) + '">*</span>' : ''}</td><td>${escapeHtml(trained)}</td><td>${escapeHtml(r.notes || '')}</td><td><button type="button" class="btn btn--small" data-del="${r.id}">${escapeHtml(t('tl.delete'))}</button></td></tr>`;
+          }).join('')}</tbody></table>
+          ${rows.some((r, i) => i > 0 && r.t - rows[i - 1].t < 90 * 864e5) ? `<p class="small muted">* ${escapeHtml(t('tl.tooSoon'))}</p>` : ''}`;
+    }).join('');
+    sec.innerHTML = `<h2>${escapeHtml(t('tl.title'))}</h2>
+      <p>${escapeHtml(t('tl.desc'))}</p>
+      <form class="tl-form">
+        <div class="tl-grid">
+          <div class="field"><label for="tl-name">${escapeHtml(t('tl.name'))}</label><input id="tl-name" name="name" list="tl-names" required maxlength="60" autocomplete="off"><datalist id="tl-names">${names.map(n => `<option value="${escapeHtml(n)}"></option>`).join('')}</datalist></div>
+          <div class="field"><label for="tl-date">${escapeHtml(t('tl.date'))}</label><input id="tl-date" name="date" type="date" required value="${today}" max="${today}"></div>
+          <div class="field"><label for="tl-score">${escapeHtml(t('tl.score'))}</label><input id="tl-score" name="score" type="number" step="any" required></div>
+          <div class="field"><label for="tl-notes">${escapeHtml(t('tl.notes'))}</label><input id="tl-notes" name="notes" maxlength="200"></div>
+        </div>
+        <button type="submit" class="btn btn--primary">${escapeHtml(t('tl.add'))}</button>
+      </form>
+      ${groups || `<p class="muted">${escapeHtml(t('tl.empty'))}</p>`}`;
+    $('.tl-form', sec).onsubmit = async (e) => {
+        e.preventDefault();
+        const f = e.target;
+        const score = Number(f.score.value);
+        const name = f.name.value.trim();
+        const when = Date.parse(f.date.value + 'T12:00:00');
+        if (!name || !Number.isFinite(score) || !Number.isFinite(when)) return;
+        const rec = { name, t: when, score, notes: f.notes.value.trim() };
+        await put('tests', rec);
+        app.tests.push(rec);
+        app.tests.sort((a, b) => a.t - b.t);
+        renderProgress();
+        announce(t('set.saved'));
+        $('#tl-name')?.focus();
+    };
+    for (const b of $$('[data-del]', sec)) b.onclick = async () => {
+        const id = Number(b.dataset.del);
+        await remove('tests', id);
+        app.tests = app.tests.filter(r => r.id !== id);
+        renderProgress();
+    };
+    return sec;
 }
 
 const kpi = (label, value) => `<div class="kpi"><div class="kpi__value">${escapeHtml(value)}</div><div class="kpi__label">${escapeHtml(label)}</div></div>`;
@@ -734,6 +854,20 @@ function renderSettings() {
         };
     });
     bindSettingInputs(v);
+    if (settingsTab === 'data') renderStorageStatus();
+}
+
+async function renderStorageStatus() {
+    const box = $('.storage-status');
+    if (!box) return;
+    const persisted = await isPersisted();
+    let html = `<p class="${persisted ? 'muted' : 'notice'}">${escapeHtml(t(persisted ? 'data.persisted' : 'data.notPersisted'))}</p>`;
+    if (isStandalone()) html += `<p class="muted">${escapeHtml(t('data.installed'))}</p>`;
+    else if (canInstall()) html += `<p><button type="button" class="btn btn--primary install-btn">${escapeHtml(t('data.install'))}</button></p>`;
+    else if (isIOS()) html += `<p>${escapeHtml(t('data.iosInstall'))}</p>`;
+    box.innerHTML = html;
+    const b = $('.install-btn', box);
+    if (b) b.onclick = async () => { await promptInstall(); renderStorageStatus(); };
 }
 
 const ctl = {
@@ -800,10 +934,13 @@ function panel(tab) {
             + ctl.select('theme', 'set.theme', [['auto', t('theme.auto')], ['light', t('theme.light')], ['dark', t('theme.dark')]])
             + ctl.select('textSize', 'set.textSize', [['s', t('size.s')], ['m', t('size.m')], ['l', t('size.l')], ['xl', t('size.xl')]])
             + ctl.toggle('reduceMotion', 'set.reduceMotion')
-            + ctl.toggle('negSymbol', 'set.negSymbol');
+            + ctl.toggle('negSymbol', 'set.negSymbol')
+            + ctl.toggle('keepAwake', 'set.keepAwake')
+            + ctl.toggle('vibrate', 'set.vibrate');
     }
     return `<p class="muted">${escapeHtml(t('data.desc'))}</p>
       ${storageOk ? '' : `<p class="notice">${escapeHtml(t('data.storageError'))}</p>`}
+      <div class="storage-status" aria-live="polite"></div>
       <div class="btn-row">
         <button type="button" class="btn" data-act="csv">${escapeHtml(t('data.exportCsv'))}</button>
         <button type="button" class="btn" data-act="json">${escapeHtml(t('data.exportJson'))}</button>
@@ -825,6 +962,7 @@ function bindSettingInputs(v) {
         } else {
             $('.warnings', v).innerHTML = settingsWarnings(app.settings).map(w => `<p class="notice">${escapeHtml(t(w))}</p>`).join('');
         }
+        if (key === 'keepAwake') updateWakeLock();
     };
     for (const inp of $$('[data-key]', v)) {
         const key = inp.dataset.key;
@@ -898,7 +1036,7 @@ function exportCsv() {
 }
 
 function exportJson() {
-    const data = { format: 'syllogimous-rr', version: 1, exported: new Date().toISOString(), settings: app.settings, state: app.state, answers: app.answers, sessions: app.sessions, benchmarks: app.benchmarks };
+    const data = { format: 'syllogimous-rr', version: 1, exported: new Date().toISOString(), settings: app.settings, state: app.state, answers: app.answers, sessions: app.sessions, benchmarks: app.benchmarks, tests: app.tests };
     download('syllogimous-rr-backup.json', JSON.stringify(data), 'application/json');
 }
 
@@ -983,10 +1121,19 @@ async function boot() {
     if (app.settings.program && !app.state.programStart) startProgram();
     if (window.matchMedia) window.matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', updateThemeToggle);
     document.addEventListener('keydown', onKey);
-    document.addEventListener('visibilitychange', () => { if (document.hidden) pauseTimer(); else if (app.view === 'train') resumeTimer(); });
+    document.addEventListener('visibilitychange', () => { if (document.hidden) pauseTimer(); else if (app.view === 'train') resumeTimer(); updateWakeLock(); });
+    registerServiceWorker(() => {
+        const b = $('.update-banner');
+        $('.update-banner__text', b).textContent = t('pwa.update');
+        $('.update-banner__btn', b).textContent = t('pwa.reload');
+        $('.update-banner__btn', b).onclick = () => location.reload();
+        b.hidden = false;
+    });
+    onInstallChange(() => { if (app.view === 'settings' && settingsTab === 'data') renderStorageStatus(); });
 
     await openDB();
-    [app.answers, app.sessions, app.benchmarks] = await Promise.all([getAll('answers'), getAll('sessions'), getAll('benchmarks')]);
+    [app.answers, app.sessions, app.benchmarks, app.tests] = await Promise.all([getAll('answers'), getAll('sessions'), getAll('benchmarks'), getAll('tests')]);
+    app.tests.sort((a, b) => a.t - b.t);
     app.answers.sort((a, b) => a.t - b.t);
     compact(app.answers);
     // resume a recent session
@@ -1001,4 +1148,4 @@ async function boot() {
 boot();
 
 // exposed for automated tests only
-window.__srr = { app, answer, nextQuestion, showView };
+window.__srr = { app, answer, nextQuestion, showView, renderNotices };

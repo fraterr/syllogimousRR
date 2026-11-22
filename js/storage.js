@@ -27,7 +27,7 @@ export const DEFAULTS = {
     negation: false, negationReminder: true, meta: false, stroop: false, oneAtATime: false, shuffleButtons: false,
     words: 'nonsense', premiseOrder: 'scrambled', hidePremises: false,
     sessionMinutes: 30, weeklyGoal: 3, autoNext: true, explainAlways: false,
-    program: false,
+    program: false, keepAwake: true, vibrate: false,
 };
 
 export const PRESETS = {
@@ -91,6 +91,8 @@ export function sanitizeSettings(raw) {
         autoNext: bool(r.autoNext, d.autoNext),
         explainAlways: bool(r.explainAlways, d.explainAlways),
         program: bool(r.program, d.program),
+        keepAwake: bool(r.keepAwake, d.keepAwake),
+        vibrate: bool(r.vibrate, d.vibrate),
     };
     if (s.startLevel > s.maxLevel) s.startLevel = s.maxLevel;
     return s;
@@ -145,18 +147,20 @@ export const saveState = (st) => writeJSON(STATE_KEY, st);
 // ---------- IndexedDB ----------
 
 let db = null;
-const memory = { answers: [], sessions: [], benchmarks: [] };
+const memory = { answers: [], sessions: [], benchmarks: [], tests: [] };
 export let storageOk = true;
 
 export function openDB() {
     return new Promise((resolve) => {
         let req;
-        try { req = indexedDB.open(DB_NAME, 1); } catch { storageOk = false; return resolve(false); }
+        try { req = indexedDB.open(DB_NAME, 2); } catch { storageOk = false; return resolve(false); }
         req.onupgradeneeded = () => {
             const d = req.result;
-            d.createObjectStore('answers', { keyPath: 'id', autoIncrement: true });
-            d.createObjectStore('sessions', { keyPath: 'id' });
-            d.createObjectStore('benchmarks', { keyPath: 'id', autoIncrement: true });
+            const make = (name, opts) => { if (!d.objectStoreNames.contains(name)) d.createObjectStore(name, opts); };
+            make('answers', { keyPath: 'id', autoIncrement: true });
+            make('sessions', { keyPath: 'id' });
+            make('benchmarks', { keyPath: 'id', autoIncrement: true });
+            make('tests', { keyPath: 'id', autoIncrement: true });
         };
         req.onsuccess = () => { db = req.result; resolve(true); };
         req.onerror = () => { storageOk = false; resolve(false); };
@@ -201,9 +205,14 @@ export async function put(store, record) {
     return record.id;
 }
 
+export async function remove(store, id) {
+    if (!db) { memory[store] = memory[store].filter(r => r.id !== id); return; }
+    await tx(store, 'readwrite', (os) => os && os.delete(id));
+}
+
 export async function clearAll() {
     for (const s of Object.keys(memory)) memory[s] = [];
-    if (db) for (const s of ['answers', 'sessions', 'benchmarks']) await tx(s, 'readwrite', (os) => os && os.clear());
+    if (db) for (const s of ['answers', 'sessions', 'benchmarks', 'tests']) await tx(s, 'readwrite', (os) => os && os.clear());
     try { localStorage.removeItem(SETTINGS_KEY); localStorage.removeItem(STATE_KEY); } catch { /* ignore */ }
 }
 
@@ -223,6 +232,6 @@ export async function importBackup(data) {
     await clearAll();
     saveSettings(sanitizeSettings(data.settings));
     if (data.state) saveState(data.state);
-    for (const store of ['answers', 'sessions', 'benchmarks'])
+    for (const store of ['answers', 'sessions', 'benchmarks', 'tests'])
         for (const r of (data[store] || [])) if (r && typeof r === 'object') await put(store, r);
 }

@@ -227,5 +227,23 @@ let disconnected = 0;
 for (let i = 0; i < 300; i++) if (!connected(generateQuestion('comparison', 6, ctxFor({ premiseOrder: 'p80' })).premises)) disconnected++;
 assert.ok(disconnected > 60, `80% scrambling barely changes the order (${disconnected}/300 disconnected)`);
 
+// The guide's hand-written worked examples must be correct too.
+const { KINDS } = await import('../js/guide.js');
+const SYM = ['same', 'opposite'];
+let guideChecked = 0;
+for (const kind of KINDS) for (const ex of kind.examples) {
+    let truth;
+    const c = ex.conclusion;
+    if (c.kind === 'analogy') truth = c.same === (relKey(ex, c.a, c.b) === relKey(ex, c.c, c.d));
+    else if (c.kind === 'tree') {
+        const leaf = (st) => truthOf(st, { premises: ex.premises.filter(p => SYM.includes(p.rel) === SYM.includes(st.rel)) });
+        const ev = (n) => n.kind === 'leaf' ? leaf(c.leaves[n.index]) : evalOp(n.op, ev(n.left), ev(n.right));
+        truth = ev(c.tree);
+    } else truth = truthOf(c, ex);
+    assert.equal(truth, ex.isValid, 'guide example ' + kind.id + ' is wrong');
+    guideChecked++;
+}
+console.log('guide: ' + guideChecked + ' worked examples verified');
+
 console.log(`generators: ${checked} questions verified; TRUE ratios:`,
     Object.fromEntries(Object.entries(ratio).map(([t, [v, n]]) => [t, +(v / n).toFixed(2)])), `chain-ordered: ${chainOrdered}/300`);
