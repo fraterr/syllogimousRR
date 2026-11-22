@@ -1,7 +1,7 @@
 // Independent solvers: each recomputes the answer from the PREMISES ONLY and
 // compares it with the generator's isValid. Run: node tests/generators.test.mjs
 import assert from 'node:assert/strict';
-import { generateQuestion, BASE_TYPES, OPS, evalOp } from '../js/generators.js';
+import { generateQuestion, BASE_TYPES, OPS, evalOp, condStatus } from '../js/generators.js';
 import { createWordPool } from '../js/words.js';
 
 const N = +process.env.N || 400;
@@ -234,7 +234,9 @@ let guideChecked = 0;
 for (const kind of KINDS) for (const ex of kind.examples) {
     let truth;
     const c = ex.conclusion;
-    if (c.kind === 'analogy') truth = c.same === (relKey(ex, c.a, c.b) === relKey(ex, c.c, c.d));
+    if (c.kind === 'fact' || c.kind === 'cond') truth = condStatus(ex.premises, c) === 'valid';
+    else if (c.kind === 'bsyl') truth = syllogismEntails(ex.premises, c);
+    else if (c.kind === 'analogy') truth = c.same === (relKey(ex, c.a, c.b) === relKey(ex, c.c, c.d));
     else if (c.kind === 'tree') {
         const leaf = (st) => truthOf(st, { premises: ex.premises.filter(p => SYM.includes(p.rel) === SYM.includes(st.rel)) });
         const ev = (n) => n.kind === 'leaf' ? leaf(c.leaves[n.index]) : evalOp(n.op, ev(n.left), ev(n.right));

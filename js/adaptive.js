@@ -1,6 +1,6 @@
 // Adaptive difficulty, category choice and time limits.
 
-import { MIN_LEVEL, MAX_LEVEL } from './generators.js';
+import { MIN_LEVEL, maxLevelOf } from './generators.js';
 import { median, weightedPick, pick } from './util.js';
 
 /**
@@ -10,7 +10,7 @@ import { median, weightedPick, pick } from './util.js';
  */
 export function updateLevel(state, type, correct, settings) {
     const min = MIN_LEVEL[type] || 2;
-    const max = Math.max(min, Math.min(MAX_LEVEL, settings.maxLevel));
+    const max = Math.max(min, Math.min(maxLevelOf(type), settings.maxLevel));
     const cur = state.levels[type] || { level: Math.max(min, Math.min(max, settings.startLevel)), streak: 0 };
     let change = 0;
     if (correct) {
@@ -27,7 +27,7 @@ export function updateLevel(state, type, correct, settings) {
 export function currentLevel(state, type, settings) {
     const min = MIN_LEVEL[type] || 2;
     if (!settings.adaptive) return Math.max(min, settings.fixedLevel);
-    const max = Math.max(min, settings.maxLevel);
+    const max = Math.max(min, Math.min(maxLevelOf(type), settings.maxLevel));
     const v = state.levels[type];
     return Math.max(min, Math.min(max, v ? v.level : settings.startLevel));
 }

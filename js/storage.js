@@ -15,7 +15,7 @@ const MAX_ANSWERS = 50000;
 
 export const TIMER_DEFAULTS = {
     distinction: 30, comparison: 30, temporal: 30, syllogism: 30, direction: 40, direction3D: 50,
-    direction4D: 60, analogy: 50, binary: 60, sorting: 90,
+    direction4D: 60, conditional: 40, belief: 40, analogy: 50, binary: 60, sorting: 90,
 };
 
 export const DEFAULTS = {
@@ -38,7 +38,7 @@ export const PRESETS = {
         premiseOrder: 'ordered', hidePremises: false,
     },
     intermediate: {
-        enabled: ['distinction', 'comparison', 'temporal', 'syllogism', 'direction', 'direction3D', 'analogy', 'binary'],
+        enabled: ['distinction', 'comparison', 'temporal', 'syllogism', 'direction', 'direction3D', 'conditional', 'belief', 'analogy', 'binary'],
         adaptive: true, startLevel: 3, maxLevel: 12, negation: true, meta: false, stroop: false,
         oneAtATime: false, shuffleButtons: false, timerMode: 'adaptive', words: 'nonsense', explainAlways: false, nestedDepth: 0,
         premiseOrder: 'p50', hidePremises: true,

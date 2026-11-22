@@ -23,7 +23,7 @@ for (let n = 2; n <= STAGES.length; n++) {
     prev = s.enabled;
 }
 const last = stageSettings(STAGES.length, display);
-assert.deepEqual([...last.enabled].sort(), ['analogy', 'binary', 'comparison', 'direction', 'direction3D', 'direction4D', 'distinction', 'syllogism', 'temporal']);
+assert.deepEqual([...last.enabled].sort(), ['analogy', 'belief', 'binary', 'comparison', 'conditional', 'direction', 'direction3D', 'direction4D', 'distinction', 'syllogism', 'temporal']);
 assert.equal(last.meta, true); assert.equal(last.timerMode, 'adaptive'); assert.equal(last.stroop, false);
 assert.equal(stageSettings(2, display).timers.temporal, 30);
 // premise order and hidden premises follow the community progression

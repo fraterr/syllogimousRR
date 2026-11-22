@@ -16,18 +16,22 @@
 //  * one word pool per question, shared by all sub-questions.
 
 import { randInt, coin, pick, shuffle, sample, sign } from './util.js';
+import { CATEGORIES, realTruth } from './belief.js';
 
 export const BASE_TYPES = ['distinction', 'comparison', 'temporal', 'syllogism', 'direction', 'direction3D', 'direction4D'];
 export const ANALOGY_BASES = ['distinction', 'comparison', 'temporal', 'direction', 'direction3D', 'direction4D'];
-export const TYPES = [...BASE_TYPES, 'analogy', 'binary', 'sorting'];
+export const TYPES = [...BASE_TYPES, 'conditional', 'belief', 'analogy', 'binary', 'sorting'];
 export const OPS = ['and', 'or', 'nand', 'nor', 'xor', 'xnor'];
 
 export const MIN_LEVEL = {
     distinction: 2, comparison: 2, temporal: 2, syllogism: 2,
     direction: 2, direction3D: 2, direction4D: 2,
-    analogy: 3, binary: 4, sorting: 2,
+    conditional: 2, belief: 2, analogy: 3, binary: 4, sorting: 2,
 };
 export const MAX_LEVEL = 20;
+/** Types with a lower ceiling than MAX_LEVEL (belief bias runs out of real categories). */
+export const TYPE_MAX = { belief: 8 };
+export const maxLevelOf = (type) => Math.min(MAX_LEVEL, TYPE_MAX[type] || MAX_LEVEL);
 
 // ---------- statement constructors ----------
 
@@ -37,6 +41,11 @@ export const sylStmt = (form, s, p, neg = false) => ({ kind: 'syl', form, s, p, 
 export const metaStmt = (same, x, y, a, b, neg = false) => ({ kind: 'meta', same, x, y, a, b, neg });
 export const analogyStmt = (same, a, b, c, d, neg = false) => ({ kind: 'analogy', same, a, b, c, d, neg });
 export const opNode = (op, left, right) => ({ kind: 'op', op, left, right });
+/** A literal: item `w` is on (true) or off (false). */
+export const lit = (w, on) => ({ w, on });
+export const factStmt = (w, on) => ({ kind: 'fact', w, on });
+export const condStmt = (a, b) => ({ kind: 'cond', a, b });
+export const beliefStmt = (form, s, p) => ({ kind: 'bsyl', form, s, p });
 
 const INVERSE_REL = { same: 'opposite', opposite: 'same', more: 'less', less: 'more', before: 'after', after: 'before' };
 export const inverseRel = (r) => INVERSE_REL[r];
@@ -270,6 +279,180 @@ function genSyllogism(n, ctx) {
     };
 }
 
+// ---------- conditional (if… then) ----------
+//
+// Items are lamps that are on or off. Premises are a chain of conditionals
+// L0 → L1 → … → Lk between literals, plus (in "fact" questions) one fact.
+// Valid patterns: modus ponens, modus tollens, chain rule, contrapositive.
+// Invalid ones: affirming the consequent, denying the antecedent, converse,
+// inverse, and a conclusion the premises contradict. Extra premises link a
+// NEW item to the chain with a single conditional, so they never change the
+// answer. The answer is checked with a 2-SAT solver, not assumed.
+
+const negLit = (l) => lit(l.w, !l.on);
+const litKey = (l) => (l.on ? '+' : '-') + l.w;
+
+/** Satisfiable? `clauses` are pairs of literals (a ∨ b); a unit clause is [a, a]. */
+export function sat2(clauses) {
+    const nodes = new Map();
+    const id = (k) => { if (!nodes.has(k)) nodes.set(k, nodes.size); return nodes.get(k); };
+    const edges = [];
+    const add = (a, b) => edges.push([id(litKey(a)), id(litKey(b))]);
+    for (const [a, b] of clauses) { add(negLit(a), b); add(negLit(b), a); }
+    for (const [a] of clauses) { id(litKey(negLit(a))); }
+    const n = nodes.size;
+    const out = Array.from({ length: n }, () => []), inn = Array.from({ length: n }, () => []);
+    for (const [a, b] of edges) { out[a].push(b); inn[b].push(a); }
+    // Kosaraju (iterative)
+    const order = [], seen = new Array(n).fill(false);
+    for (let v = 0; v < n; v++) {
+        if (seen[v]) continue;
+        const stack = [[v, 0]]; seen[v] = true;
+        while (stack.length) {
+            const top = stack[stack.length - 1];
+            if (top[1] < out[top[0]].length) {
+                const w = out[top[0]][top[1]++];
+                if (!seen[w]) { seen[w] = true; stack.push([w, 0]); }
+            } else { order.push(top[0]); stack.pop(); }
+        }
+    }
+    const comp = new Array(n).fill(-1);
+    let c = 0;
+    for (let i = n - 1; i >= 0; i--) {
+        const v = order[i];
+        if (comp[v] !== -1) continue;
+        const stack = [v]; comp[v] = c;
+        while (stack.length) { const x = stack.pop(); for (const w of inn[x]) if (comp[w] === -1) { comp[w] = c; stack.push(w); } }
+        c++;
+    }
+    for (const [k, v] of nodes) {
+        if (k[0] !== '+') continue;
+        const other = nodes.get('-' + k.slice(1));
+        if (other !== undefined && comp[v] === comp[other]) return false;
+    }
+    return true;
+}
+
+/** Clauses for conditional/fact statements. */
+export function condClauses(statements) {
+    return statements.map(st => (st.kind === 'fact' ? [lit(st.w, st.on), lit(st.w, st.on)] : [negLit(st.a), st.b]));
+}
+
+/** 'valid' (follows), 'contradicted' (its negation follows) or 'open' (neither). */
+export function condStatus(premises, claim) {
+    const base = condClauses(premises);
+    // claim C is entailed iff premises ∧ ¬C is unsatisfiable
+    const notClaim = claim.kind === 'fact'
+        ? [[lit(claim.w, !claim.on), lit(claim.w, !claim.on)]]
+        : [[claim.a, claim.a], [negLit(claim.b), negLit(claim.b)]];
+    const withClaim = claim.kind === 'fact'
+        ? [[lit(claim.w, claim.on), lit(claim.w, claim.on)]]
+        : [[negLit(claim.a), claim.b]];
+    if (!sat2([...base, ...notClaim])) return 'valid';
+    if (!sat2([...base, ...withClaim])) return 'contradicted';
+    return 'open';
+}
+
+const COND_VALID = { fact: ['MP', 'MT'], chain: ['HS', 'CP'] };
+const COND_INVALID = { fact: ['AC', 'DA', 'AC', 'DA', 'CONTRA'], chain: ['CONV', 'INV'] };
+
+function genConditional(n, ctx) {
+    const pNeg = ctx.settings.negation ? 0.45 : 0.25;
+    const isValid = coin();
+    for (let attempt = 0; attempt < 50; attempt++) {
+        let mode = Math.random() < 0.6 ? 'fact' : 'chain';
+        const condCount = mode === 'fact' ? n - 1 : n;
+        let distractors = Math.floor((n - 2) / 3);
+        let k = condCount - distractors;              // conditionals in the chain
+        let patterns = (isValid ? COND_VALID : COND_INVALID)[mode];
+        if (mode === 'chain' && k < 2) patterns = patterns.filter(p => p !== 'HS');
+        if (k < 1) continue;
+        const pattern = pick(patterns);
+        const words = ctx.pool.take(k + 1 + distractors);
+        const chain = words.slice(0, k + 1).map(w => lit(w, Math.random() >= pNeg));
+        const premises = [];
+        for (let i = 0; i < k; i++) premises.push(condStmt(chain[i], chain[i + 1]));
+        for (let d = 0; d < distractors; d++) {
+            const x = chain[randInt(k + 1)];
+            const fresh = lit(words[k + 1 + d], Math.random() >= pNeg);
+            premises.push(coin() ? condStmt(fresh, x) : condStmt(x, fresh));
+        }
+        // i < j: chain positions
+        const i = randInt(k), j = i + 1 + randInt(k - i);
+        const L = (x) => factStmt(x.w, x.on), NL = (x) => factStmt(x.w, !x.on);
+        let fact = null, claim;
+        switch (pattern) {
+            case 'MP': fact = L(chain[i]); claim = L(chain[j]); break;
+            case 'MT': fact = NL(chain[j]); claim = NL(chain[i]); break;
+            case 'AC': fact = L(chain[j]); claim = L(chain[i]); break;
+            case 'DA': fact = NL(chain[i]); claim = NL(chain[j]); break;
+            case 'CONTRA':
+                if (coin()) { fact = L(chain[i]); claim = NL(chain[j]); } else { fact = NL(chain[j]); claim = L(chain[i]); }
+                break;
+            case 'HS': {
+                const a = randInt(k - 1), b = a + 2 + randInt(k - a - 1);
+                claim = condStmt(chain[a], chain[b]); break;
+            }
+            case 'CP': claim = condStmt(negLit(chain[j]), negLit(chain[i])); break;
+            case 'CONV': claim = condStmt(chain[j], chain[i]); break;
+            case 'INV': claim = condStmt(negLit(chain[i]), negLit(chain[j])); break;
+        }
+        if (fact) premises.push(fact);
+        const status = condStatus(premises, claim);
+        if ((status === 'valid') !== isValid) continue; // never happens by construction; kept as a guard
+        return {
+            type: 'conditional', level: n,
+            premises: arrange(premises, ctx, { reversible: !fact }),
+            conclusion: claim,
+            isValid,
+            model: { kind: 'conditional', chain, fact, pattern, status, distractors },
+        };
+    }
+    throw new Error('Could not build a conditional question');
+}
+
+// ---------- belief bias ----------
+//
+// A syllogism with real categories. Validity (coin) and the real-world truth
+// of the conclusion (coin) are independent, so believability carries no
+// information about the answer: half the questions are conflict items.
+
+function genBelief(n, ctx) {
+    const isValid = coin();
+    const believable = coin();
+    const rule = isValid ? pick(Object.keys(VALID_SYLLOGISMS)) : randomInvalidRule();
+    // Sometimes every premise is true in reality too (the classic trap when the
+    // argument is invalid). A valid argument with true premises cannot have a
+    // false conclusion, so that cell always has at least one false premise.
+    const wantTrue = !(isValid && !believable) && Math.random() < 0.4;
+    const real = ([f, a, b]) => realTruth(f, a, b);
+    let found = null;
+    for (let tries = 0; tries < 4000 && !found; tries++) {
+        const [s, p, m] = sample(CATEGORIES, 3);
+        const parts = syllogismFromRule(rule, s, p, m);
+        if (real(parts.conclusion) !== believable) continue;
+        if (tries < 3000 && (real(parts.major) && real(parts.minor)) !== wantTrue) continue;
+        found = { s, p, m, ...parts };
+    }
+    const { s, p, m, major, minor, conclusion } = found;
+    const used = [s, p, m];
+    const mk = ([f, a, b]) => beliefStmt(f, a, b);
+    const premises = [mk(major), mk(minor)];
+    const free = shuffle(CATEGORIES.filter(c => !used.includes(c)));
+    for (let i = 3; i <= n && free.length; i++) {
+        const other = pick(used), fresh = free.pop();
+        used.push(fresh);
+        premises.push(coin() ? beliefStmt(pick(FORMS), fresh, other) : beliefStmt(pick(FORMS), other, fresh));
+    }
+    return {
+        type: 'belief', level: premises.length,
+        premises: arrange(premises, ctx, { reversible: false }),
+        conclusion: mk(conclusion),
+        isValid,
+        model: { kind: 'belief', rule, mood: VALID_SYLLOGISMS[rule] || null, terms: { s, p, m }, distractors: premises.length - 2, believable },
+    };
+}
+
 // ---------- analogy ----------
 
 /** Relation between two items of a base model, as a comparable key (or null if undefined). */
@@ -391,10 +574,12 @@ function generateBase(type, n, ctx) {
  * @param {{settings: {enabled: string[], negation: boolean, meta: boolean, ops: string[], nestedDepth: number, premiseOrder?: string}, pool}} ctx
  */
 export function generateQuestion(type, level, ctx) {
-    const n = Math.max(MIN_LEVEL[type] || 2, Math.min(MAX_LEVEL, level));
+    const n = Math.max(MIN_LEVEL[type] || 2, Math.min(maxLevelOf(type), level));
     let q;
     if (type === 'analogy') q = genAnalogy(n, ctx);
     else if (type === 'binary') q = genBinary(n, ctx);
+    else if (type === 'conditional') q = genConditional(n, ctx);
+    else if (type === 'belief') q = genBelief(n, ctx);
     else q = generateBase(type, n, ctx);
     q.level = n;
     return q;

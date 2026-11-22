@@ -4,6 +4,7 @@
 
 import { escapeHtml } from './util.js';
 import { inverseRel, inverseForm } from './generators.js';
+import { renderBelief } from './belief.js';
 
 const S = (w) => `<span class="subj">${escapeHtml(w)}</span>`;
 const MARK = (t) => `<span class="neg">${t}</span>`;
@@ -44,6 +45,8 @@ export const GRAMMAR = {
             same: (a, b, c, d, M) => `The relation ${a} → ${b} is ${M('the same as')} the relation ${c} → ${d}`,
             different: (a, b, c, d, M) => `The relation ${a} → ${b} is ${M('different from')} the relation ${c} → ${d}`,
         },
+        fact: (w, on) => `${w} is ${on ? 'on' : 'off'}`,
+        cond: (a, ao, b, bo) => `If ${a} is ${ao ? 'on' : 'off'}, then ${b} is ${bo ? 'on' : 'off'}`,
         ops: { and: 'AND', or: 'OR', nand: 'NAND', nor: 'NOR', xor: 'XOR', xnor: 'XNOR' },
     },
     de: {
@@ -75,6 +78,8 @@ export const GRAMMAR = {
             same: (a, b, c, d, M) => `Die Beziehung ${a} → ${b} ist ${M('dieselbe wie')} die Beziehung ${c} → ${d}`,
             different: (a, b, c, d, M) => `Die Beziehung ${a} → ${b} ist ${M('eine andere als')} die Beziehung ${c} → ${d}`,
         },
+        fact: (w, on) => `${w} ist ${on ? 'an' : 'aus'}`,
+        cond: (a, ao, b, bo) => `Wenn ${a} ${ao ? 'an' : 'aus'} ist, dann ist ${b} ${bo ? 'an' : 'aus'}`,
         ops: { and: 'UND', or: 'ODER', nand: 'NAND', nor: 'NOR', xor: 'XOR', xnor: 'XNOR' },
     },
     fr: {
@@ -104,6 +109,8 @@ export const GRAMMAR = {
             same: (a, b, c, d, M) => `La relation ${a} → ${b} est ${M('la même que')} la relation ${c} → ${d}`,
             different: (a, b, c, d, M) => `La relation ${a} → ${b} est ${M('différente de')} la relation ${c} → ${d}`,
         },
+        fact: (w, on) => `${w} est ${on ? 'allumé' : 'éteint'}`,
+        cond: (a, ao, b, bo) => `Si ${a} est ${ao ? 'allumé' : 'éteint'}, alors ${b} est ${bo ? 'allumé' : 'éteint'}`,
         ops: { and: 'ET', or: 'OU', nand: 'NAND', nor: 'NOR', xor: 'XOR', xnor: 'XNOR' },
     },
     it: {
@@ -133,6 +140,8 @@ export const GRAMMAR = {
             same: (a, b, c, d, M) => `La relazione ${a} → ${b} è ${M('uguale alla')} relazione ${c} → ${d}`,
             different: (a, b, c, d, M) => `La relazione ${a} → ${b} è ${M('diversa dalla')} relazione ${c} → ${d}`,
         },
+        fact: (w, on) => `${w} è ${on ? 'acceso' : 'spento'}`,
+        cond: (a, ao, b, bo) => `Se ${a} è ${ao ? 'acceso' : 'spento'}, allora ${b} è ${bo ? 'acceso' : 'spento'}`,
         ops: { and: 'E', or: 'O', nand: 'NAND', nor: 'NOR', xor: 'XOR', xnor: 'XNOR' },
     },
     es: {
@@ -162,6 +171,8 @@ export const GRAMMAR = {
             same: (a, b, c, d, M) => `La relación ${a} → ${b} es ${M('igual a')} la relación ${c} → ${d}`,
             different: (a, b, c, d, M) => `La relación ${a} → ${b} es ${M('distinta de')} la relación ${c} → ${d}`,
         },
+        fact: (w, on) => `${w} está ${on ? 'encendido' : 'apagado'}`,
+        cond: (a, ao, b, bo) => `Si ${a} está ${ao ? 'encendido' : 'apagado'}, entonces ${b} está ${bo ? 'encendido' : 'apagado'}`,
         ops: { and: 'Y', or: 'O', nand: 'NAND', nor: 'NOR', xor: 'XOR', xnor: 'XNOR' },
     },
     ru: {
@@ -191,6 +202,8 @@ export const GRAMMAR = {
             same: (a, b, c, d, M) => `Отношение ${a} → ${b} ${M('такое же, как')} отношение ${c} → ${d}`,
             different: (a, b, c, d, M) => `Отношение ${a} → ${b} ${M('иное, чем')} отношение ${c} → ${d}`,
         },
+        fact: (w, on) => `${w} ${on ? 'включён' : 'выключен'}`,
+        cond: (a, ao, b, bo) => `Если ${a} ${ao ? 'включён' : 'выключен'}, то ${b} ${bo ? 'включён' : 'выключен'}`,
         ops: { and: 'И', or: 'ИЛИ', nand: 'NAND', nor: 'NOR', xor: 'XOR', xnor: 'XNOR' },
     },
 };
@@ -251,11 +264,19 @@ function renderSymbols(st, lang) {
             const same = st.neg ? !st.same : st.same;
             return `${S(st.a)}:${S(st.b)} ${M(same ? '=' : '≠')} ${S(st.c)}:${S(st.d)}`;
         }
+        case 'fact':
+            return symLit(st.w, st.on);
+        case 'cond':
+            return `${symLit(st.a.w, st.a.on)} → ${symLit(st.b.w, st.b.on)}`;
+        case 'bsyl':
+            return renderBelief(st.form, st.s, st.p, lang);
         case 'tree':
             return renderTree(st.tree, st.leaves, lang, 0, 'symbols');
     }
     throw new Error('Cannot render ' + st.kind);
 }
+
+const symLit = (w, on) => (on ? S(w) : `¬${S(w)}`);
 
 /** Name of a logic operator in the given style. */
 export const opName = (op, lang, style = currentStyle) => (style === 'symbols' ? SYMBOLS.ops[op] : G(lang).ops[op]);
@@ -278,6 +299,9 @@ export function symbolKey(statements, lang) {
         if (st.kind === 'syl') add({ kind: 'syl', form: st.neg ? inverseForm(st.form) : st.form, s: 'S', p: 'P' });
         if (st.kind === 'meta') add({ kind: 'meta', same: st.neg ? !st.same : st.same, x: 'X', y: 'Y', a: 'A', b: 'B' });
         if (st.kind === 'analogy') add({ kind: 'analogy', same: st.neg ? !st.same : st.same, a: 'A', b: 'B', c: 'C', d: 'D' });
+        if (st.kind === 'fact') add({ kind: 'fact', w: 'A', on: st.on });
+        if (st.kind === 'cond') add({ kind: 'cond', a: { w: 'A', on: true }, b: { w: 'B', on: true } });
+        if (st.kind === 'cond') { if (!st.a.on || !st.b.on) add({ kind: 'fact', w: 'A', on: false }); }
     };
     statements.forEach(visit);
     return [...out].map(([symbol, sentence]) => ({ symbol, sentence }));
@@ -313,6 +337,12 @@ export function renderStatement(st, lang, style = currentStyle) {
             const same = st.neg ? !st.same : st.same;
             return g.analogy[same ? 'same' : 'different'](S(st.a), S(st.b), S(st.c), S(st.d), M);
         }
+        case 'fact':
+            return g.fact(S(st.w), st.on);
+        case 'cond':
+            return g.cond(S(st.a.w), st.a.on, S(st.b.w), st.b.on);
+        case 'bsyl':
+            return renderBelief(st.form, st.s, st.p, lang);
         case 'tree':
             return renderTree(st.tree, st.leaves, lang, 0, 'sentences');
     }

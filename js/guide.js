@@ -5,7 +5,7 @@
 import { t } from './i18n.js';
 import { renderStatement } from './render.js';
 import { explain, answerWord } from './explain.js';
-import { relStmt, dirStmt, sylStmt, analogyStmt, generateQuestion, BASE_TYPES, OPS } from './generators.js';
+import { relStmt, dirStmt, sylStmt, analogyStmt, lit, factStmt, condStmt, beliefStmt, generateQuestion, BASE_TYPES, OPS } from './generators.js';
 import { createWordPool } from './words.js';
 import { escapeHtml } from './util.js';
 
@@ -52,6 +52,40 @@ export const KINDS = [
                 premises: [sylStmt('I', 'FOM', 'GUL'), sylStmt('I', 'BEK', 'FOM')],
                 conclusion: sylStmt('I', 'BEK', 'GUL'), isValid: false,
                 model: { kind: 'syllogism', rule: 'III1', mood: null, terms: { s: 'BEK', p: 'GUL', m: 'FOM' }, distractors: 0 },
+            },
+        ],
+    },
+    {
+        id: 'conditional', practice: 'conditional',
+        examples: [
+            {
+                // modus tollens along a chain: LOM on means KIP is not on, so ZEB is not on
+                premises: [condStmt(lit('ZEB', true), lit('KIP', true)), condStmt(lit('KIP', true), lit('LOM', false)), factStmt('LOM', true)],
+                conclusion: factStmt('ZEB', false), isValid: true,
+                model: { kind: 'conditional', chain: [lit('ZEB', true), lit('KIP', true), lit('LOM', false)], fact: factStmt('LOM', true), pattern: 'MT', status: 'valid', distractors: 0 },
+            },
+            {
+                // affirming the consequent
+                premises: [condStmt(lit('ZEB', true), lit('KIP', true)), factStmt('KIP', true)],
+                conclusion: factStmt('ZEB', true), isValid: false,
+                model: { kind: 'conditional', chain: [lit('ZEB', true), lit('KIP', true)], fact: factStmt('KIP', true), pattern: 'AC', status: 'open', distractors: 0 },
+            },
+        ],
+    },
+    {
+        id: 'belief', practice: 'belief',
+        examples: [
+            {
+                // valid, but the conclusion is false in reality
+                premises: [beliefStmt('A', 'mammals', 'birds'), beliefStmt('A', 'whales', 'mammals')],
+                conclusion: beliefStmt('A', 'whales', 'birds'), isValid: true,
+                model: { kind: 'belief', rule: 'AAA1', mood: 'Barbara', terms: { s: 'whales', p: 'birds', m: 'mammals' }, distractors: 0, believable: false },
+            },
+            {
+                // invalid, but every sentence is true in reality
+                premises: [beliefStmt('A', 'flowers', 'plants'), beliefStmt('A', 'roses', 'plants')],
+                conclusion: beliefStmt('A', 'roses', 'flowers'), isValid: false,
+                model: { kind: 'belief', rule: 'AAA2', mood: null, terms: { s: 'roses', p: 'flowers', m: 'plants' }, distractors: 0, believable: true },
             },
         ],
     },

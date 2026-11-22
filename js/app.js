@@ -288,7 +288,8 @@ function nextQuestion() {
         if (app.bench) ctx.settings = { ...ctx.settings, enabled: BENCH_TYPES, ops: OPS, nestedDepth: 0, meta: false, premiseOrder: 'scrambled' };
         if (app.bench) ctx.pool = createWordPool(lang(), 'nonsense');
         app.q = generateQuestion(type, level, ctx);
-        app.q.style = app.bench ? 'sentences' : app.settings.premiseStyle;
+        // belief-bias questions are about real words: always shown as sentences
+        app.q.style = app.bench || type === 'belief' ? 'sentences' : app.settings.premiseStyle;
         app.q.stroop = !app.bench && app.settings.stroop && coin();
         app.q.swap = app.settings.shuffleButtons && coin();
     }
@@ -337,6 +338,9 @@ function renderQuestion(fresh) {
     card.classList.toggle('stroop', !!q.stroop);
     $('.neg-reminder').hidden = !(app.settings.negationReminder && hasNegation(q));
     $('.neg-reminder').textContent = t('train.negationReminder');
+    const note = { conditional: 'train.condNote', belief: 'train.beliefNote' }[q.type];
+    $('.type-note').hidden = !note;
+    $('.type-note').textContent = note ? t(note) : '';
 
     const L = lang();
     const list = $('.premises');

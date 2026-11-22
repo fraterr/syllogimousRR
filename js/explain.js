@@ -3,7 +3,8 @@
 
 import { t } from './i18n.js';
 import { renderStatement, dirPhrase } from './render.js';
-import { relStmt, dirStmt, relationKey } from './generators.js';
+import { relStmt, dirStmt, relationKey, factStmt } from './generators.js';
+import { categoryName } from './belief.js';
 import { escapeHtml, sign } from './util.js';
 
 const chip = (w, hl) => `<span class="chip${hl ? ' chip--hl' : ''}">${escapeHtml(w)}</span>`;
@@ -23,6 +24,8 @@ function explainModel(model, lang, q) {
         case 'syllogism': return explainSyllogism(model);
         case 'analogy': return explainAnalogy(model, lang);
         case 'binary': return explainBinary(model, lang);
+        case 'conditional': return explainConditional(model, lang);
+        case 'belief': return explainBelief(model, lang);
     }
     return '';
 }
@@ -73,6 +76,31 @@ function explainSyllogism(model) {
     const code = `${r.slice(0, 3)}-${r[3]}`;
     let html = `<p>${escapeHtml(t('ex.syl.terms', model.terms))}</p>`;
     html += `<p>${model.mood ? t('ex.syl.valid', { code, mood: model.mood }) : t('ex.syl.invalid', { code })}</p>`;
+    if (model.distractors > 0) html += `<p>${t('ex.syl.distractors')}</p>`;
+    return html;
+}
+
+function explainConditional(model, lang) {
+    const say = (l) => `<span class="ex-lit">${renderStatement(factStmt(l.w, l.on), lang, 'sentences')}</span>`;
+    const arrow = '<span class="ex-arrow" aria-hidden="true">→</span>';
+    const chain = model.chain.map(say).join(arrow);
+    const back = [...model.chain].reverse().map(l => say({ w: l.w, on: !l.on })).join(arrow);
+    let html = `<p>${t('ex.cond.chain')}</p><p class="ex-line ex-line--cond">${chain}</p>`;
+    html += `<p>${t('ex.cond.back')}</p><p class="ex-line ex-line--cond">${back}</p>`;
+    html += `<p><strong>${t('ex.cond.' + model.pattern)}</strong></p>`;
+    if (model.distractors > 0) html += `<p>${t('ex.cond.distractors')}</p>`;
+    return html;
+}
+
+function explainBelief(model, lang) {
+    const r = model.rule;
+    const code = `${r.slice(0, 3)}-${r[3]}`;
+    const names = { s: categoryName(model.terms.s, lang), p: categoryName(model.terms.p, lang), m: categoryName(model.terms.m, lang) };
+    const valid = !!model.mood;
+    let html = `<p>${escapeHtml(t('ex.syl.terms', names))}</p>`;
+    html += `<p>${valid ? t('ex.syl.valid', { code, mood: model.mood }) : t('ex.syl.invalid', { code })}</p>`;
+    html += `<p>${t(model.believable ? 'ex.belief.realTrue' : 'ex.belief.realFalse')}</p>`;
+    html += `<p><strong>${t(valid === model.believable ? 'ex.belief.agree' : 'ex.belief.conflict')}</strong></p>`;
     if (model.distractors > 0) html += `<p>${t('ex.syl.distractors')}</p>`;
     return html;
 }

@@ -22,7 +22,7 @@ for (const lang of Object.keys(STRINGS)) {
 }
 
 let rendered = 0;
-const types = [...BASE_TYPES, 'analogy', 'binary'];
+const types = [...BASE_TYPES, 'conditional', 'belief', 'analogy', 'binary'];
 for (const lang of LANGS) {
     for (const negation of [false, true]) for (const meta of [false, true]) {
         for (const type of types) {
@@ -64,7 +64,7 @@ for (const lang of LANGS) for (const words of ['emoji', 'nonsense']) for (const 
     for (const st of all) {
         const html = renderStatement(st, lang, 'symbols');
         const text = toText(html);
-        assert.ok(text.length > 2 && !/undefined|null|NaN|\{|\}/.test(text), lang + ' ' + type + ': bad symbol text ' + text);
+        assert.ok((st.kind === 'fact' ? text.length > 0 : text.length > 2) && !/undefined|null|NaN|\{|\}/.test(text), lang + ' ' + type + ': bad symbol text ' + text);
         assert.ok(!/<(?!\/?span|\/?div)/.test(html.replace(/&lt;/g, '')), 'unescaped < in ' + html);
         if (st.neg) assert.ok(html.includes('class="neg"'));
         symRendered++;

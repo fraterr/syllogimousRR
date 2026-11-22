@@ -9,7 +9,16 @@ This version is a rewrite and is not endorsed by the original author. Non-commer
 ## Question types
 
 Distinction (same / opposite), Comparison (more / less), Time (before / after), Syllogisms,
-Space 2D, Space 3D, Space-time, Analogy, Binary logic (with nesting) and Sorting (discover a hidden rule).
+Space 2D, Space 3D, Space-time, If… then, Belief bias, Analogy, Binary logic (with nesting) and
+Sorting (discover a hidden rule).
+
+- **If… then**: items are lamps that are on or off; premises are chains of conditionals plus, often,
+  one fact. Valid patterns (modus ponens, modus tollens, chain rule, contrapositive) and the classic
+  fallacies (affirming the consequent, denying the antecedent, converse, inverse) appear equally
+  often. The explanation shows the chain forwards and backwards and names the pattern.
+- **Belief bias**: syllogisms with real categories (dogs, mammals, roses…). Validity and the
+  real-world truth of the conclusion are independent coin flips, so in half of the questions common
+  sense points the wrong way, and believability never tells you the answer.
 Optional challenges: negation, meta-relations, Stroop interference, premises shown one at a time,
 shuffled answer buttons, nonsense syllables, real nouns or emoji as subjects, premises written as
 sentences or as symbols (A > B, A ↗ B, S ⊆ P…, with a key in the chosen language), premise order (in order, 50% or 80%
@@ -103,7 +112,9 @@ npm run sw                    # after changing any file: refresh the offline cac
 
 `tests/generators.test.mjs` re-derives every answer from the premises alone (relation propagation,
 coordinates, brute-force Venn models for syllogisms) and checks it against the generator, plus
-balance of TRUE/FALSE and premise shuffling. `tests/i18n.test.mjs` checks that all six languages
+balance of TRUE/FALSE and premise shuffling. `tests/logic.test.mjs` checks every conditional
+question against a full truth table (and the 2-SAT solver against it), every belief-bias question
+against Venn models and the taxonomy, and the balance of the four belief cells. `tests/i18n.test.mjs` checks that all six languages
 have the same keys and placeholders and that every kind of statement renders in every language.
 
 ## Publish on GitHub Pages
