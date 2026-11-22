@@ -587,3 +587,27 @@ input[type="text"], input[type="date"], input:not([type]) {
 .preset-btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 .preset-btn[aria-pressed="true"]:hover { background: var(--accent-strong); border-color: var(--accent-strong); color: #fff; }
 .preset-status { font-size: .88rem; font-weight: 600; color: var(--accent); margin-left: .25rem; }
+
+/* ---------- centred game area: one column, info strip on top ---------- */
+.train-grid { grid-template-columns: minmax(0, 1fr); max-width: 760px; margin: 0 auto; }
+.train-side {
+    border-right: 0; border-bottom: 2px solid var(--rule); padding: 0 0 1rem; margin-bottom: 1.4rem;
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .9rem 1.5rem; align-items: end;
+}
+.question__type { font-size: 2rem; }
+.question__level { font-size: 4.4rem; text-align: right; }
+.side-block--level { align-items: flex-end; }
+.stats { grid-column: 1 / -1; grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 0; }
+.program-block { grid-column: 1 / -1; }
+.end-session { grid-column: 1 / -1; justify-self: start; }
+#view-train > .notices, #view-train > .bench-banner, #view-train > .feedback, #view-train > .keys {
+    max-width: 760px; margin-left: auto; margin-right: auto;
+}
+@media (max-width: 760px) {
+    .question__type { font-size: 1.7rem; }
+    .question__level { font-size: 3.6rem; }
+    .stat__value { font-size: 1.15rem; }
+}
+@media (max-width: 400px) {
+    .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

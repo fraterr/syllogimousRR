@@ -1,6 +1,6 @@
 // Service worker: the whole app is cached on install so it works offline.
 // VERSION and ASSETS are written by `npm run sw` (scripts/sw-version.mjs).
-const VERSION = '05142a107d65';
+const VERSION = '9fc350de0c62';
 const CACHE = 'srr-' + VERSION;
 const ASSETS = [
     './',

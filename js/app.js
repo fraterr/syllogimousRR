@@ -362,7 +362,7 @@ function renderQuestion(fresh) {
     // answer buttons: DOM order matters for keyboard users, so swap the nodes
     const answers = $('.answers');
     const tb = $('.btn--true'), fb = $('.btn--false');
-    if (q.swap) answers.append(fb, tb); else answers.append(tb, fb);
+    if (q.swap) answers.append(tb, fb); else answers.append(fb, tb); // default: False left, True right
     updateAnswerKeys();
     updateStepper();
 }

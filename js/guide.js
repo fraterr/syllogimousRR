@@ -149,12 +149,12 @@ function practice(box, kind, lang, index) {
         <ol class="premises premises--small">${q.premises.map(p => `<li>${renderStatement(p, lang, 'sentences')}</li>`).join('')}</ol>
         <div class="conclusion conclusion--small">${renderStatement(q.conclusion, lang, 'sentences')}</div>
         <div class="guide-answers">
-          <button type="button" class="btn btn--answer btn--true" data-v="true"><span class="btn__text">${escapeHtml(t('btn.true'))}</span></button>
           <button type="button" class="btn btn--answer btn--false" data-v="false"><span class="btn__text">${escapeHtml(t('btn.false'))}</span></button>
+          <button type="button" class="btn btn--answer btn--true" data-v="true"><span class="btn__text">${escapeHtml(t('btn.true'))}</span></button>
         </div>
         <div class="guide-result" aria-live="polite"></div>
       </div>`;
-    box.querySelector('.guide-answers .btn--true').focus();
+    box.querySelector('.guide-answers .btn').focus();
     for (const b of box.querySelectorAll('.guide-answers button')) {
         b.onclick = () => {
             const correct = (b.dataset.v === 'true') === q.isValid;
