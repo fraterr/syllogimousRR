@@ -64,7 +64,7 @@ function explainSpace(model, lang) {
     const [a, b] = model.pair;
     const ca = coords[words.indexOf(a)], cb = coords[words.indexOf(b)];
     const vec = [sign(ca[0] - cb[0]), sign(ca[1] - cb[1]), sign(ca[2] - cb[2])];
-    html += `<p>${t('ex.pair')} ${renderStatement(dirStmt(dim, vec, sign(ca[3] - cb[3]), a, b), lang)}</p>`;
+    html += `<p>${t('ex.pair')} ${renderStatement(dirStmt(dim, vec, sign(ca[3] - cb[3]), a, b), lang, 'sentences')}</p>`;
     return html;
 }
 
@@ -93,7 +93,7 @@ function explainAnalogy(model, lang) {
     const [a, b, c, d] = model.quad;
     const base = { ...model.base, pair: model.quad };
     return explainModel(base, lang)
-        + `<p>${renderStatement(trueRelation(model.base, a, b), lang)}.<br>${renderStatement(trueRelation(model.base, c, d), lang)}.</p>`
+        + `<p>${renderStatement(trueRelation(model.base, a, b), lang, 'sentences')}.<br>${renderStatement(trueRelation(model.base, c, d), lang, 'sentences')}.</p>`
         + `<p><strong>${t(model.same ? 'ex.analogy.same' : 'ex.analogy.diff')}</strong></p>`;
 }
 
@@ -101,7 +101,7 @@ function explainBinary(model, lang) {
     const val = (v) => t(v ? 'words.true' : 'words.false');
     let html = '';
     model.parts.forEach((p, i) => {
-        html += `<div class="ex-part"><p><strong>${t('ex.binary.part', { n: i + 1, value: val(p.isValid) })}</strong> ${renderStatement(p.conclusion, lang)}</p>${explainModel(p.model, lang)}</div>`;
+        html += `<div class="ex-part"><p><strong>${t('ex.binary.part', { n: i + 1, value: val(p.isValid) })}</strong> ${renderStatement(p.conclusion, lang, 'sentences')}</p>${explainModel(p.model, lang)}</div>`;
     });
     return html;
 }

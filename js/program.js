@@ -49,6 +49,7 @@ export function stageSettings(stage, current) {
         textSize: current.textSize || DEFAULTS.textSize,
         reduceMotion: !!current.reduceMotion, negSymbol: !!current.negSymbol,
         keepAwake: current.keepAwake !== false, vibrate: !!current.vibrate,
+        premiseStyle: current.premiseStyle === 'symbols' ? 'symbols' : 'sentences',
         ...structuredClone(BASE),
         program: true,
     };

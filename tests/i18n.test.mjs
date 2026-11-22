@@ -50,4 +50,30 @@ assert.equal(S(renderStatement({ kind: 'dir', dim: 4, vec: [0, -1, 0], t: 1, a: 
 assert.equal(S(renderStatement({ kind: 'dir', dim: 2, vec: [-1, 1, 0], t: 0, a: 'A', b: 'B', neg: true }, 'it')), 'A è a sud-est di B');
 assert.equal(S(renderStatement({ kind: 'rel', rel: 'more', a: 'A', b: 'B' }, 'ru')), 'A больше, чем B');
 assert.equal(S(renderStatement({ kind: 'syl', form: 'A', s: 'A', p: 'B', neg: true }, 'es')), 'Ningún A es B');
+// Symbol style and emoji words: every statement renders without gaps in every
+// language, negation stays marked, and every symbol used has a key entry.
+const { setStyle, symbolKey } = await import('../js/render.js');
+let symRendered = 0;
+for (const lang of LANGS) for (const words of ['emoji', 'nonsense']) for (const type of types) for (let i = 0; i < 25; i++) {
+    const q = generateQuestion(type, type === 'binary' ? 6 : 4, {
+        settings: { enabled: types, negation: true, meta: i % 2 === 0, ops: OPS, nestedDepth: i % 3 },
+        pool: createWordPool(lang, words),
+    });
+    const all = [...q.premises, q.conclusion];
+    const key = symbolKey(all, lang);
+    for (const st of all) {
+        const html = renderStatement(st, lang, 'symbols');
+        const text = toText(html);
+        assert.ok(text.length > 2 && !/undefined|null|NaN|\{|\}/.test(text), lang + ' ' + type + ': bad symbol text ' + text);
+        assert.ok(!/<(?!\/?span|\/?div)/.test(html.replace(/&lt;/g, '')), 'unescaped < in ' + html);
+        if (st.neg) assert.ok(html.includes('class="neg"'));
+        symRendered++;
+    }
+    for (const k of key) assert.ok(toText(k.sentence).length > 3, 'empty key sentence');
+}
+setStyle('sentences');
+assert.equal(toText(renderStatement({ kind: 'rel', rel: 'less', a: 'A', b: 'B' }, 'en', 'symbols')), 'A < B');
+assert.equal(toText(renderStatement({ kind: 'syl', form: 'E', s: 'S', p: 'P' }, 'en', 'symbols')), 'S ∩ P = ∅');
+assert.equal(toText(renderStatement({ kind: 'dir', dim: 4, vec: [1, 1, 1], t: -1, a: 'A', b: 'B' }, 'en', 'symbols')), 'A ▲↗ B t−');
+console.log('symbols: ' + symRendered + ' statements rendered in symbol style (emoji and nonsense words)');
 console.log(`i18n: ${Object.keys(en).length} keys × ${LANGS.length} languages OK; ${rendered} statements rendered`);

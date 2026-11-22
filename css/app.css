@@ -551,3 +551,34 @@ input[type="text"], input[type="date"], input:not([type]) {
     body[data-phase="question"] #view-train { padding-bottom: 96px; }
     .testlog .data { display: block; overflow-x: auto; }
 }
+
+/* ---------- symbol style ---------- */
+.question__text.is-symbols .premises li { font-size: 1.45rem; letter-spacing: .02em; font-variant-numeric: tabular-nums; }
+.question__text.is-symbols .conclusion { font-size: 1.9rem; }
+.question__text.is-symbols .neg { text-decoration-thickness: 3px; }
+.sym-time { font-family: var(--mono); font-size: .8em; color: var(--muted); }
+.conclusion .sym-time { color: var(--conclusion-muted); }
+.sym-key { margin: 0 0 .75rem; border: 1px solid var(--line); padding: .4rem .75rem; background: var(--surface); }
+.sym-key summary { font-size: .85rem; color: var(--text-2); }
+.sym-key__list { margin: .4rem 0 .2rem; display: grid; gap: .25rem; }
+.sym-key__row { display: grid; grid-template-columns: minmax(5.5rem, auto) 1fr; gap: 1rem; align-items: baseline; font-size: .9rem; }
+.sym-key__row dt { font-weight: 600; white-space: nowrap; }
+.sym-key__row dd { margin: 0; color: var(--text-2); }
+
+/* symbols: a straight, thick underline reads better than a wave under one glyph */
+.question__text.is-symbols .neg, .conclusion--small .neg { text-decoration-style: solid; text-underline-offset: 6px; padding: 0 .08em; }
+.question__text.is-symbols .neg { text-decoration-thickness: 3px; }
+
+/* compact header: icon-only theme toggle, no tagline, tighter nav */
+.brand__tag { display: none; }
+.nav { gap: 1.1rem; }
+.theme-toggle { padding: 0 .65rem; }
+.theme-toggle__text { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
+.topbar__inner { gap: 1rem; }
+.nav { gap: .95rem; }
+.nav button { font-size: .9rem; }
+.tea--header { padding: 0 .7rem; }
+@media (max-width: 1000px) {
+    .topbar__inner > nav { order: 3; width: 100%; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+    .nav { flex-wrap: nowrap; }
+}

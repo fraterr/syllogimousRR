@@ -25,7 +25,7 @@ export const DEFAULTS = {
     adaptive: true, startLevel: 2, maxLevel: 12, fixedLevel: 3, focusWeak: true,
     ops: [...OPS], nestedDepth: 0, sortingWidth: 2,
     negation: false, negationReminder: true, meta: false, stroop: false, oneAtATime: false, shuffleButtons: false,
-    words: 'nonsense', premiseOrder: 'scrambled', hidePremises: false,
+    words: 'nonsense', premiseStyle: 'sentences', premiseOrder: 'scrambled', hidePremises: false,
     sessionMinutes: 30, weeklyGoal: 3, autoNext: true, explainAlways: false,
     program: false, keepAwake: true, vibrate: false,
 };
@@ -83,7 +83,8 @@ export function sanitizeSettings(raw) {
         stroop: bool(r.stroop, d.stroop),
         oneAtATime: bool(r.oneAtATime, d.oneAtATime),
         shuffleButtons: bool(r.shuffleButtons, d.shuffleButtons),
-        words: oneOf(r.words, ['nonsense', 'nouns'], d.words),
+        words: oneOf(r.words, ['nonsense', 'nouns', 'emoji'], d.words),
+        premiseStyle: oneOf(r.premiseStyle, ['sentences', 'symbols'], d.premiseStyle),
         premiseOrder: oneOf(r.premiseOrder, ['ordered', 'p50', 'p80', 'scrambled'], d.premiseOrder),
         hidePremises: bool(r.hidePremises, d.hidePremises),
         sessionMinutes: clampInt(r.sessionMinutes, 5, 120, d.sessionMinutes),

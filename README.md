@@ -11,7 +11,8 @@ This version is a rewrite and is not endorsed by the original author. Non-commer
 Distinction (same / opposite), Comparison (more / less), Time (before / after), Syllogisms,
 Space 2D, Space 3D, Space-time, Analogy, Binary logic (with nesting) and Sorting (discover a hidden rule).
 Optional challenges: negation, meta-relations, Stroop interference, premises shown one at a time,
-shuffled answer buttons, nonsense syllables or real nouns, premise order (in order, 50% or 80%
+shuffled answer buttons, nonsense syllables, real nouns or emoji as subjects, premises written as
+sentences or as symbols (A > B, A ↗ B, S ⊆ P…, with a key in the chosen language), premise order (in order, 50% or 80%
 scrambled, scrambled) and hiding the premises once the conclusion is shown (no rereading).
 
 ## Languages

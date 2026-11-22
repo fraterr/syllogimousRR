@@ -100,8 +100,8 @@ const RULES = ['r1', 'r2', 'r3', 'r4', 'r5'];
 function exampleHtml(ex, lang) {
     return `<div class="guide-example">
         <h3 class="eyebrow">${escapeHtml(t('guide.example'))}</h3>
-        <ol class="premises premises--small">${ex.premises.map(p => `<li>${renderStatement(p, lang)}</li>`).join('')}</ol>
-        <div class="conclusion conclusion--small">${renderStatement(ex.conclusion, lang)}</div>
+        <ol class="premises premises--small">${ex.premises.map(p => `<li>${renderStatement(p, lang, 'sentences')}</li>`).join('')}</ol>
+        <div class="conclusion conclusion--small">${renderStatement(ex.conclusion, lang, 'sentences')}</div>
         <p><strong>${escapeHtml(t('fb.answer', { answer: answerWord(ex.isValid) }))}</strong></p>
         <h3 class="eyebrow">${escapeHtml(t('guide.map'))}</h3>
         ${explain(ex, lang)}
@@ -146,8 +146,8 @@ function practice(box, kind, lang, index) {
     });
     box.innerHTML = `<div class="guide-q" role="group" aria-label="${escapeHtml(t('guide.practice'))} ${index + 1}/2">
         <p class="eyebrow">${escapeHtml(t('guide.practice'))} · ${index + 1}/2</p>
-        <ol class="premises premises--small">${q.premises.map(p => `<li>${renderStatement(p, lang)}</li>`).join('')}</ol>
-        <div class="conclusion conclusion--small">${renderStatement(q.conclusion, lang)}</div>
+        <ol class="premises premises--small">${q.premises.map(p => `<li>${renderStatement(p, lang, 'sentences')}</li>`).join('')}</ol>
+        <div class="conclusion conclusion--small">${renderStatement(q.conclusion, lang, 'sentences')}</div>
         <div class="guide-answers">
           <button type="button" class="btn btn--answer btn--true" data-v="true"><span class="btn__text">${escapeHtml(t('btn.true'))}</span></button>
           <button type="button" class="btn btn--answer btn--false" data-v="false"><span class="btn__text">${escapeHtml(t('btn.false'))}</span></button>

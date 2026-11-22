@@ -2,7 +2,7 @@
 
 import { t, setLang, LANGUAGE_NAMES } from './i18n.js';
 import { generateQuestion, TYPES, BASE_TYPES, OPS, MIN_LEVEL, MAX_LEVEL } from './generators.js';
-import { renderStatement, hasNegation, opsInTree, toText, GRAMMAR } from './render.js';
+import { renderStatement, hasNegation, opsInTree, toText, setStyle, opName, symbolKey } from './render.js';
 import { explain, answerWord } from './explain.js';
 import { createWordPool } from './words.js';
 import {
@@ -71,6 +71,7 @@ function applyDisplaySettings() {
     root.classList.toggle('reduce-motion', s.reduceMotion);
     root.classList.toggle('neg-symbol', s.negSymbol);
     setLang(s.lang);
+    setStyle(s.premiseStyle);
     document.title = t('app.title');
 }
 
@@ -101,6 +102,7 @@ function updateThemeToggle() {
     const b = $('.theme-toggle');
     b.setAttribute('aria-pressed', String(isDark()));
     b.setAttribute('aria-label', t('theme.toggle'));
+    b.title = t('theme.toggle');
     $('.theme-toggle__text', b).textContent = t('theme.toggle');
 }
 
@@ -284,7 +286,9 @@ function nextQuestion() {
     } else {
         const ctx = makeCtx();
         if (app.bench) ctx.settings = { ...ctx.settings, enabled: BENCH_TYPES, ops: OPS, nestedDepth: 0, meta: false, premiseOrder: 'scrambled' };
+        if (app.bench) ctx.pool = createWordPool(lang(), 'nonsense');
         app.q = generateQuestion(type, level, ctx);
+        app.q.style = app.bench ? 'sentences' : app.settings.premiseStyle;
         app.q.stroop = !app.bench && app.settings.stroop && coin();
         app.q.swap = app.settings.shuffleButtons && coin();
     }
@@ -336,14 +340,23 @@ function renderQuestion(fresh) {
 
     const L = lang();
     const list = $('.premises');
-    list.innerHTML = q.premises.map((p, i) => `<li data-i="${i}">${renderStatement(p, L)}</li>`).join('');
-    $('.conclusion').innerHTML = renderStatement(q.conclusion, L);
+    const style = q.style || app.settings.premiseStyle;
+    list.innerHTML = q.premises.map((p, i) => `<li data-i="${i}">${renderStatement(p, L, style)}</li>`).join('');
+    $('.conclusion').innerHTML = renderStatement(q.conclusion, L, style);
+    $('.question__text').classList.toggle('is-symbols', style === 'symbols');
+    const key = $('.sym-key');
+    key.hidden = style !== 'symbols';
+    if (style === 'symbols') {
+        $('.sym-key__title', key).textContent = t('sym.key');
+        $('.sym-key__list', key).innerHTML = symbolKey([...q.premises, q.conclusion], L)
+            .map(k => `<div class="sym-key__row"><dt>${k.symbol}</dt><dd>${k.sentence}</dd></div>`).join('');
+    }
 
     const legend = $('.legend');
     if (q.conclusion.kind === 'tree') {
         const ops = [...opsInTree(q.conclusion.tree)];
         legend.hidden = false;
-        legend.innerHTML = `<span class="legend__title">${t('train.legend')}:</span> ` + ops.map(o => `<span class="legend__item"><b>${escapeHtml(renderOpName(o))}</b> = ${escapeHtml(t('op.' + o))}</span>`).join(' · ');
+        legend.innerHTML = `<span class="legend__title">${t('train.legend')}:</span> ` + ops.map(o => `<span class="legend__item"><b>${escapeHtml(renderOpName(o, style))}</b> = ${escapeHtml(t('op.' + o))}</span>`).join(' · ');
     } else legend.hidden = true;
 
     // answer buttons: DOM order matters for keyboard users, so swap the nodes
@@ -364,7 +377,7 @@ function updateAnswerKeys() {
     $('#view-train .keys').textContent = t('train.keys', { left: $('.btn__text', left).textContent, right: $('.btn__text', right).textContent });
 }
 
-const renderOpName = (op) => (GRAMMAR[lang()] || GRAMMAR.en).ops[op];
+const renderOpName = (op, style) => opName(op, lang(), style);
 
 // Premise display modes (not during a check-up):
 //  - one at a time: step i shows premise i; step n shows the conclusion;
@@ -911,7 +924,8 @@ function panel(tab) {
             + ctl.number('sortingWidth', 'set.sortingWidth', 2, 4);
     }
     if (tab === 'challenges') {
-        return ctl.select('words', 'set.words', [['nonsense', t('words.nonsense')], ['nouns', t('words.nouns')]], 'set.wordsDesc')
+        return ctl.select('words', 'set.words', [['nonsense', t('words.nonsense')], ['nouns', t('words.nouns')], ['emoji', t('words.emoji')]], 'set.wordsDesc')
+            + ctl.select('premiseStyle', 'set.style', [['sentences', t('style.sentences')], ['symbols', t('style.symbols')]], 'set.styleDesc')
             + ctl.toggle('negation', 'set.negation', 'set.negationDesc')
             + ctl.toggle('negationReminder', 'set.negationReminder')
             + ctl.toggle('meta', 'set.meta', 'set.metaDesc')
@@ -963,6 +977,7 @@ function bindSettingInputs(v) {
             $('.warnings', v).innerHTML = settingsWarnings(app.settings).map(w => `<p class="notice">${escapeHtml(t(w))}</p>`).join('');
         }
         if (key === 'keepAwake') updateWakeLock();
+        if (key === 'premiseStyle') setStyle(app.settings.premiseStyle);
     };
     for (const inp of $$('[data-key]', v)) {
         const key = inp.dataset.key;
@@ -1027,7 +1042,7 @@ function exportCsv() {
     for (const a of app.answers) {
         let prem = '', concl = '';
         try {
-            if (a.q && a.q.premises) { prem = a.q.premises.map(p => toText(renderStatement(p, L))).join(' | '); concl = toText(renderStatement(a.q.conclusion, L)); }
+            if (a.q && a.q.premises) { prem = a.q.premises.map(p => toText(renderStatement(p, L, 'sentences'))).join(' | '); concl = toText(renderStatement(a.q.conclusion, L, 'sentences')); }
             if (a.q && a.q.rule) concl = ruleText(a.q.rule);
         } catch { /* keep empty */ }
         rows.push([new Date(a.t).toISOString(), a.type, a.sub || '', a.level, prem, concl, a.type === 'sorting' ? '' : a.isValid, a.answer === null ? '' : a.answer, a.correct ? 'correct' : a.timedOut ? 'timeout' : 'wrong', (a.rt / 1000).toFixed(1), a.bench ? 1 : 0]);

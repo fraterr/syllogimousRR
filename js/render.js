@@ -207,11 +207,88 @@ export function dirPhrase(vec, lang) {
 
 const negateVec = (v) => [-v[0], -v[1], -v[2]];
 
+// ---------- symbol style ----------
+// A language-free notation: the relation only, no sentence. A key under the
+// question translates every symbol into a sentence in the chosen language.
+export const SYMBOLS = {
+    rel: { same: '=', opposite: '≠', more: '>', less: '<', before: '≺', after: '≻' },
+    H: { n: '↑', ne: '↗', e: '→', se: '↘', s: '↓', sw: '↙', w: '←', nw: '↖' },
+    V: { up: '▲', down: '▼' },
+    T: ['t−', 't=', 't+'],
+    ops: { and: '∧', or: '∨', nand: '⊼', nor: '⊽', xor: '⊕', xnor: '↔' },
+};
+const symDir = (vec) => { const { h, v } = dirParts(vec); return (v ? SYMBOLS.V[v] : '') + (h ? SYMBOLS.H[h] : ''); };
+
+let currentStyle = 'sentences';
+export const setStyle = (style) => { currentStyle = style === 'symbols' ? 'symbols' : 'sentences'; };
+export const getStyle = () => currentStyle;
+
+function renderSymbols(st, lang) {
+    const M = st.neg ? MARK : PLAIN;
+    switch (st.kind) {
+        case 'rel': {
+            const shown = st.neg ? inverseRel(st.rel) : st.rel;
+            return `${S(st.a)} ${M(escapeHtml(SYMBOLS.rel[shown]))} ${S(st.b)}`;
+        }
+        case 'dir': {
+            const vec = st.neg ? negateVec(st.vec) : st.vec;
+            const time = st.dim === 4 ? ` <span class="sym-time">${SYMBOLS.T[st.t + 1]}</span>` : '';
+            return `${S(st.a)} ${M(symDir(vec))} ${S(st.b)}${time}`;
+        }
+        case 'syl': {
+            const form = st.neg ? inverseForm(st.form) : st.form;
+            const s = S(st.s), p = S(st.p);
+            if (form === 'A') return `${s} ${M('⊆')} ${p}`;
+            if (form === 'E') return `${s} ${M('∩')} ${p} ${M('= ∅')}`;
+            if (form === 'I') return `${s} ∩ ${p} ${M('≠ ∅')}`;
+            return `${s} ${M('⊈')} ${p}`;
+        }
+        case 'meta': {
+            const same = st.neg ? !st.same : st.same;
+            return `${S(st.x)}:${S(st.y)} ${M(same ? '=' : '= ¬')} ${S(st.a)}:${S(st.b)}`;
+        }
+        case 'analogy': {
+            const same = st.neg ? !st.same : st.same;
+            return `${S(st.a)}:${S(st.b)} ${M(same ? '=' : '≠')} ${S(st.c)}:${S(st.d)}`;
+        }
+        case 'tree':
+            return renderTree(st.tree, st.leaves, lang, 0, 'symbols');
+    }
+    throw new Error('Cannot render ' + st.kind);
+}
+
+/** Name of a logic operator in the given style. */
+export const opName = (op, lang, style = currentStyle) => (style === 'symbols' ? SYMBOLS.ops[op] : G(lang).ops[op]);
+
+/**
+ * Key to the symbols used by some statements: [{ symbol, sentence }] built from
+ * placeholder letters, so the meaning is shown in the user's language.
+ */
+export function symbolKey(statements, lang) {
+    const out = new Map();
+    const add = (sample) => {
+        const plain = { ...sample, neg: false };
+        const symbol = renderSymbols(plain, lang);
+        if (!out.has(symbol)) out.set(symbol, renderStatement(plain, lang, 'sentences'));
+    };
+    const visit = (st) => {
+        if (st.kind === 'tree') { st.leaves.forEach(visit); return; }
+        if (st.kind === 'rel') add({ kind: 'rel', rel: st.neg ? inverseRel(st.rel) : st.rel, a: 'A', b: 'B' });
+        if (st.kind === 'dir') add({ kind: 'dir', dim: st.dim, vec: st.neg ? negateVec(st.vec) : st.vec, t: st.t, a: 'A', b: 'B' });
+        if (st.kind === 'syl') add({ kind: 'syl', form: st.neg ? inverseForm(st.form) : st.form, s: 'S', p: 'P' });
+        if (st.kind === 'meta') add({ kind: 'meta', same: st.neg ? !st.same : st.same, x: 'X', y: 'Y', a: 'A', b: 'B' });
+        if (st.kind === 'analogy') add({ kind: 'analogy', same: st.neg ? !st.same : st.same, a: 'A', b: 'B', c: 'C', d: 'D' });
+    };
+    statements.forEach(visit);
+    return [...out].map(([symbol, sentence]) => ({ symbol, sentence }));
+}
+
 /**
  * Render a statement. A negated statement shows the INVERSE relation with the
- * distinguishing words marked; its meaning is unchanged.
+ * distinguishing words (or symbol) marked; its meaning is unchanged.
  */
-export function renderStatement(st, lang) {
+export function renderStatement(st, lang, style = currentStyle) {
+    if (style === 'symbols') return renderSymbols(st, lang);
     const g = G(lang);
     const M = st.neg ? MARK : PLAIN;
     switch (st.kind) {
@@ -237,18 +314,17 @@ export function renderStatement(st, lang) {
             return g.analogy[same ? 'same' : 'different'](S(st.a), S(st.b), S(st.c), S(st.d), M);
         }
         case 'tree':
-            return renderTree(st.tree, st.leaves, lang);
+            return renderTree(st.tree, st.leaves, lang, 0, 'sentences');
     }
     throw new Error('Cannot render ' + st.kind);
 }
 
-function renderTree(node, leaves, lang, depth = 0) {
-    if (node.kind === 'leaf') return `<div class="leaf">${renderStatement(leaves[node.index], lang)}</div>`;
-    const name = G(lang).ops[node.op];
+function renderTree(node, leaves, lang, depth, style) {
+    if (node.kind === 'leaf') return `<div class="leaf">${renderStatement(leaves[node.index], lang, style)}</div>`;
     return `<div class="op-group depth-${depth % 3}" role="group">`
-        + renderTree(node.left, leaves, lang, depth + 1)
-        + `<div class="op-name" data-op="${node.op}">${name}</div>`
-        + renderTree(node.right, leaves, lang, depth + 1)
+        + renderTree(node.left, leaves, lang, depth + 1, style)
+        + `<div class="op-name" data-op="${node.op}">${opName(node.op, lang, style)}</div>`
+        + renderTree(node.right, leaves, lang, depth + 1, style)
         + `</div>`;
 }
 
@@ -264,4 +340,5 @@ export const hasNegation = (q) => [...q.premises, q.conclusion].some(function ch
 });
 
 /** Plain-text version (for CSV export and screen-reader summaries). */
-export const toText = (html) => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+export const toText = (html) => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+    .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&');
