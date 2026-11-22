@@ -25,7 +25,7 @@ export const DEFAULTS = {
     adaptive: true, startLevel: 2, maxLevel: 12, fixedLevel: 3, focusWeak: true,
     ops: [...OPS], nestedDepth: 0, sortingWidth: 2,
     negation: false, negationReminder: true, meta: false, stroop: false, oneAtATime: false, shuffleButtons: false,
-    words: 'nonsense',
+    words: 'nonsense', premiseOrder: 'scrambled', hidePremises: false,
     sessionMinutes: 30, weeklyGoal: 3, autoNext: true, explainAlways: false,
     program: false,
 };
@@ -35,16 +35,19 @@ export const PRESETS = {
         enabled: ['distinction', 'comparison', 'temporal', 'syllogism', 'direction'],
         adaptive: true, startLevel: 2, maxLevel: 6, negation: false, meta: false, stroop: false,
         oneAtATime: false, shuffleButtons: false, timerMode: 'off', words: 'nonsense', explainAlways: true, nestedDepth: 0,
+        premiseOrder: 'ordered', hidePremises: false,
     },
     intermediate: {
         enabled: ['distinction', 'comparison', 'temporal', 'syllogism', 'direction', 'direction3D', 'analogy', 'binary'],
         adaptive: true, startLevel: 3, maxLevel: 12, negation: true, meta: false, stroop: false,
         oneAtATime: false, shuffleButtons: false, timerMode: 'adaptive', words: 'nonsense', explainAlways: false, nestedDepth: 0,
+        premiseOrder: 'p50', hidePremises: true,
     },
     expert: {
         enabled: [...TYPES],
         adaptive: true, startLevel: 4, maxLevel: 20, negation: true, meta: true, stroop: true,
         oneAtATime: true, shuffleButtons: true, timerMode: 'adaptive', words: 'nonsense', explainAlways: false, nestedDepth: 2,
+        premiseOrder: 'scrambled', hidePremises: true,
     },
 };
 
@@ -81,6 +84,8 @@ export function sanitizeSettings(raw) {
         oneAtATime: bool(r.oneAtATime, d.oneAtATime),
         shuffleButtons: bool(r.shuffleButtons, d.shuffleButtons),
         words: oneOf(r.words, ['nonsense', 'nouns'], d.words),
+        premiseOrder: oneOf(r.premiseOrder, ['ordered', 'p50', 'p80', 'scrambled'], d.premiseOrder),
+        hidePremises: bool(r.hidePremises, d.hidePremises),
         sessionMinutes: clampInt(r.sessionMinutes, 5, 120, d.sessionMinutes),
         weeklyGoal: clampInt(r.weeklyGoal, 1, 7, d.weeklyGoal),
         autoNext: bool(r.autoNext, d.autoNext),

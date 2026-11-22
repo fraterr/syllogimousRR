@@ -26,6 +26,16 @@ const last = stageSettings(STAGES.length, display);
 assert.deepEqual([...last.enabled].sort(), ['analogy', 'binary', 'comparison', 'direction', 'direction3D', 'direction4D', 'distinction', 'syllogism', 'temporal']);
 assert.equal(last.meta, true); assert.equal(last.timerMode, 'adaptive'); assert.equal(last.stroop, false);
 assert.equal(stageSettings(2, display).timers.temporal, 30);
+// premise order and hidden premises follow the community progression
+assert.equal(s1.premiseOrder, 'ordered'); assert.equal(s1.hidePremises, false);
+assert.equal(stageSettings(2, display).hidePremises, true);
+assert.equal(stageSettings(3, display).premiseOrder, 'p50');
+assert.equal(stageSettings(4, display).premiseOrder, 'p80'); assert.equal(stageSettings(4, display).oneAtATime, true);
+assert.equal(last.premiseOrder, 'scrambled'); assert.equal(last.hidePremises, true);
+assert.equal(STAGES.length, 8);
+// the programme never changes the language: English stays the default
+assert.equal(stageSettings(1, { lang: 'en' }).lang, 'en');
+assert.equal(stageSettings(1, {}).lang, 'en');
 
 // Advancement: needs completed sessions AND accuracy >= 70% on recent answers
 const since = 1000;

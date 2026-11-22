@@ -213,5 +213,19 @@ for (const [t, [v, n]] of Object.entries(ratio)) {
 // Syllogism with binary (word separation) – just make sure it generates without errors.
 for (let i = 0; i < 200; i++) generateQuestion('binary', 4 + (i % 6), ctxFor({ nestedDepth: i % 4 }));
 
+// Premise order: "ordered" gives a connected sequence (each premise shares a
+// word with an earlier one); partial modes keep answers correct and scramble.
+const connected = (premises) => premises.every((p, i) => i === 0 || premises.slice(0, i).some(q => words(q).some(w => words(p).includes(w))));
+for (const type of ['distinction', 'comparison', 'temporal', 'syllogism', 'direction', 'direction3D', 'direction4D', 'analogy']) {
+    for (let i = 0; i < 150; i++) {
+        const q = generateQuestion(type, type === 'analogy' ? 3 + (i % 6) : 2 + (i % 9), ctxFor({ premiseOrder: 'ordered', meta: i % 2 === 0 }));
+        assert.ok(connected(q.premises), `${type}: ordered premises are not connected`);
+    }
+}
+for (const order of ['p50', 'p80']) for (const type of ['distinction', 'comparison', 'direction']) for (let i = 0; i < 100; i++) check(type, 3 + (i % 7), { premiseOrder: order });
+let disconnected = 0;
+for (let i = 0; i < 300; i++) if (!connected(generateQuestion('comparison', 6, ctxFor({ premiseOrder: 'p80' })).premises)) disconnected++;
+assert.ok(disconnected > 60, `80% scrambling barely changes the order (${disconnected}/300 disconnected)`);
+
 console.log(`generators: ${checked} questions verified; TRUE ratios:`,
     Object.fromEntries(Object.entries(ratio).map(([t, [v, n]]) => [t, +(v / n).toFixed(2)])), `chain-ordered: ${chainOrdered}/300`);

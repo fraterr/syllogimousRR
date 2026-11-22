@@ -140,6 +140,8 @@ function renderTrainChrome() {
     $('.label--level', v).textContent = t('train.premisesHeading');
     $('.step-prev', v).textContent = '↑ ' + t('btn.prevPremise');
     $('.step-next', v).textContent = t('btn.nextPremise') + ' ↓';
+    $('.reveal-btn__text', v).textContent = t('btn.reveal');
+    $('.timer', v).setAttribute('aria-label', t('set.timer'));
     $('.bench-abort', v).textContent = t('bench.abort');
     updateStatusbar();
     if (app.q) renderQuestion(false);
@@ -205,7 +207,7 @@ function updateProgramBlock() {
 function makeCtx() {
     const s = app.settings;
     return {
-        settings: { enabled: s.enabled, negation: s.negation, meta: s.meta, ops: s.ops, nestedDepth: s.nestedDepth },
+        settings: { enabled: s.enabled, negation: s.negation, meta: s.meta, ops: s.ops, nestedDepth: s.nestedDepth, premiseOrder: s.premiseOrder },
         pool: createWordPool(s.lang, s.words),
     };
 }
@@ -232,7 +234,7 @@ function nextQuestion() {
         app.q = { type: 'sorting', level, task };
     } else {
         const ctx = makeCtx();
-        if (app.bench) ctx.settings = { ...ctx.settings, enabled: BENCH_TYPES, ops: OPS, nestedDepth: 0, meta: false };
+        if (app.bench) ctx.settings = { ...ctx.settings, enabled: BENCH_TYPES, ops: OPS, nestedDepth: 0, meta: false, premiseOrder: 'scrambled' };
         app.q = generateQuestion(type, level, ctx);
         app.q.stroop = !app.bench && app.settings.stroop && coin();
         app.q.swap = app.settings.shuffleButtons && coin();
@@ -314,33 +316,60 @@ function updateAnswerKeys() {
 
 const renderOpName = (op) => (GRAMMAR[lang()] || GRAMMAR.en).ops[op];
 
+// Premise display modes (not during a check-up):
+//  - one at a time: step i shows premise i; step n shows the conclusion;
+//  - hide premises: once the conclusion is shown the premises disappear and
+//    cannot be shown again until the answer is given.
+const oneMode = () => app.settings.oneAtATime && !app.bench && app.q && app.q.premises;
+const hideMode = () => app.settings.hidePremises && !app.bench && app.q && app.q.premises;
+
 function updateStepper() {
     const q = app.q;
-    const one = app.settings.oneAtATime && !app.bench && q && q.premises;
-    const stepper = $('.stepper');
-    stepper.hidden = !one || app.phase !== 'question';
+    if (!q || !q.premises) return;
+    const asking = app.phase === 'question';
+    const one = oneMode(), hide = hideMode();
+    const total = q.premises.length;
+    const atConclusion = !asking || (!one && !hide) || app.step >= total;
     const items = $$('.premises li');
-    const showAll = !one || app.phase !== 'question';
-    items.forEach((li, i) => { li.hidden = !showAll && i !== app.step; });
-    const atConclusion = showAll || app.step >= q.premises.length;
+    items.forEach((li, i) => {
+        let visible = true;
+        if (asking && one) visible = i === app.step;
+        if (asking && hide && app.step >= total) visible = false;
+        li.hidden = !visible;
+    });
+    $('.label--premises').hidden = asking && hide && app.step >= total;
+    $('.stepper').hidden = !(asking && one);
+    $('.reveal').hidden = !(asking && hide && !one && app.step < total);
     $('.conclusion-block').hidden = !atConclusion;
-    $('.btn--true').disabled = !atConclusion || app.phase !== 'question';
-    $('.btn--false').disabled = !atConclusion || app.phase !== 'question';
-    if (one) {
-        $('.step-counter').textContent = app.step < q.premises.length
-            ? t('train.premiseCounter', { i: app.step + 1, n: q.premises.length })
+    $('.btn--true').disabled = !atConclusion || !asking;
+    $('.btn--false').disabled = !atConclusion || !asking;
+    if (asking && one) {
+        $('.step-counter').textContent = app.step < total
+            ? t('train.premiseCounter', { i: app.step + 1, n: total })
             : t('train.conclusionHeading');
-        $('.step-prev').disabled = app.step === 0;
-        $('.step-next').disabled = app.step >= q.premises.length;
+        $('.step-prev').disabled = app.step === 0 || (hide && app.step >= total);
+        $('.step-next').disabled = app.step >= total;
+        $('.step-next').textContent = (app.step === total - 1 ? t('btn.reveal') : t('btn.nextPremise')) + ' ↓';
     }
 }
 
 function step(d) {
-    if (!app.q || !app.q.premises || !app.settings.oneAtATime || app.phase !== 'question') return;
-    app.step = Math.max(0, Math.min(app.q.premises.length, app.step + d));
+    if (!app.q || !app.q.premises || app.phase !== 'question') return;
+    const one = oneMode(), hide = hideMode();
+    if (!one && !hide) return;
+    const total = app.q.premises.length;
+    if (hide && app.step >= total) return; // no going back once the conclusion is shown
+    if (one) app.step = Math.max(0, Math.min(total, app.step + d));
+    else if (d > 0) app.step = total;
+    else return;
     updateStepper();
-    const target = app.step < app.q.premises.length ? $$('.premises li')[app.step] : $('.conclusion');
-    announce(toText(target.innerHTML));
+    if (app.step >= total) {
+        announce(toText($('.conclusion').innerHTML));
+        const first = $('.answers').firstElementChild;
+        if (document.activeElement && (document.activeElement.classList.contains('reveal-btn') || document.activeElement.classList.contains('step-next'))) first.focus();
+    } else {
+        announce(toText($$('.premises li')[app.step].innerHTML));
+    }
 }
 
 // ---------------------------------------------------------------- timer
@@ -742,6 +771,8 @@ function panel(tab) {
             + ctl.toggle('negation', 'set.negation', 'set.negationDesc')
             + ctl.toggle('negationReminder', 'set.negationReminder')
             + ctl.toggle('meta', 'set.meta', 'set.metaDesc')
+            + ctl.select('premiseOrder', 'set.premiseOrder', [['ordered', t('order.ordered')], ['p50', t('order.p50')], ['p80', t('order.p80')], ['scrambled', t('order.scrambled')]], 'set.premiseOrderDesc')
+            + ctl.toggle('hidePremises', 'set.hidePremises', 'set.hidePremisesDesc')
             + ctl.toggle('oneAtATime', 'set.oneAtATime', 'set.oneAtATimeDesc')
             + ctl.toggle('stroop', 'set.stroop', 'set.stroopDesc')
             + ctl.toggle('shuffleButtons', 'set.shuffleButtons');
@@ -911,8 +942,8 @@ function onKey(e) {
             if (!btn.disabled) btn.click();
             return;
         }
-        if (app.settings.oneAtATime && k === 'arrowdown') { step(1); e.preventDefault(); }
-        if (app.settings.oneAtATime && k === 'arrowup') { step(-1); e.preventDefault(); }
+        if ((oneMode() || hideMode()) && k === 'arrowdown') { step(1); e.preventDefault(); }
+        if ((oneMode() || hideMode()) && k === 'arrowup') { step(-1); e.preventDefault(); }
     } else if (app.phase === 'feedback' && k === 'enter' && tag !== 'button' && tag !== 'summary' && tag !== 'a') {
         e.preventDefault();
         $('.next-btn')?.click();
@@ -929,6 +960,7 @@ async function boot() {
     $('.btn--false').onclick = () => answer(false);
     $('.step-prev').onclick = () => step(-1);
     $('.step-next').onclick = () => step(1);
+    $('.reveal-btn').onclick = () => step(1);
     $('.end-session').onclick = endSession;
     $('.bench-abort').onclick = abortBench;
     $('.theme-toggle').onclick = toggleTheme;

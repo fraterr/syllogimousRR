@@ -43,6 +43,29 @@ export const inverseRel = (r) => INVERSE_REL[r];
 
 const neg = (ctx) => !!ctx.settings.negation && coin();
 
+/** Share of premises that get scrambled for each "premise order" setting. */
+export const SCRAMBLE = { ordered: 0, p50: 0.5, p80: 0.8, scrambled: 1 };
+
+/**
+ * Put premises in the order chosen by the user. Premises arrive from the
+ * generators in a CONNECTED order: each one shares a subject with an earlier
+ * one. "ordered" keeps that (a chain may also be read backwards, which keeps
+ * it connected); 50% / 80% scramble that share of positions; "scrambled"
+ * shuffles everything (Fisher–Yates).
+ */
+export function arrange(premises, ctx, { reversible = true } = {}) {
+    const frac = SCRAMBLE[ctx.settings.premiseOrder] ?? 1;
+    if (frac >= 1) return shuffle(premises);
+    const list = reversible && coin() ? [...premises].reverse() : [...premises];
+    const k = Math.round(frac * list.length);
+    if (k < 2) return list;
+    const idx = sample(list.map((_, i) => i), k).sort((a, b) => a - b);
+    let moved = shuffle(idx.map(i => list[i]));
+    for (let tries = 0; tries < 5 && moved.every((p, j) => p === list[idx[j]]); tries++) moved = shuffle(moved);
+    idx.forEach((i, j) => { list[i] = moved[j]; });
+    return list;
+}
+
 // ---------- direction vectors ----------
 
 // x = east, y = north, z = up. 2D uses z = 0.
@@ -89,7 +112,7 @@ function genLinear(type, n, ctx) {
     const claim = isValid ? truth : (truth === up ? down : up);
     return {
         type, level: n,
-        premises: shuffle(premises),
+        premises: arrange(premises, ctx),
         conclusion: phraseRel(claim, words[x], words[y], ctx),
         isValid,
         model: { kind: 'linear', type, order: words, pair: [words[x], words[y]] },
@@ -121,7 +144,7 @@ function genDistinction(n, ctx) {
     const claim = isValid ? truth : inverseRel(truth);
     return {
         type: 'distinction', level: n,
-        premises: shuffle(premises),
+        premises: arrange(premises, ctx),
         conclusion: phraseRel(claim, words[x], words[y], ctx),
         isValid,
         model: {
@@ -182,7 +205,7 @@ function genDirection(dim, n, ctx) {
         }
         return {
             type, level: n,
-            premises: shuffle(premises),
+            premises: arrange(premises, ctx),
             conclusion: dirStmt(dim, vec, t, words[x], words[y], neg(ctx)),
             isValid,
             model: { kind: 'space', dim, words, coords, pair: [words[x], words[y]] },
@@ -240,7 +263,7 @@ function genSyllogism(n, ctx) {
     }
     return {
         type: 'syllogism', level: n,
-        premises: shuffle(premises),
+        premises: arrange(premises, ctx, { reversible: false }),
         conclusion: mk(conclusion),
         isValid,
         model: { kind: 'syllogism', rule, mood: VALID_SYLLOGISMS[rule] || null, terms: { s, p, m }, distractors: n - 2 },
@@ -339,7 +362,7 @@ function genBinary(n, ctx) {
         if (isValid !== wanted && attempt < 59) continue;
         return {
             type: 'binary', level: n,
-            premises: shuffle(parts.flatMap(p => p.premises)),
+            premises: (SCRAMBLE[ctx.settings.premiseOrder] ?? 1) >= 1 ? shuffle(parts.flatMap(p => p.premises)) : parts.flatMap(p => p.premises),
             conclusion: { kind: 'tree', tree, leaves: parts.map(p => p.conclusion) },
             isValid,
             model: { kind: 'binary', tree, parts: parts.map(p => ({ type: p.type, isValid: p.isValid, conclusion: p.conclusion, model: p.model })) },
@@ -365,7 +388,7 @@ function generateBase(type, n, ctx) {
 /**
  * @param {string} type one of TYPES except 'sorting'
  * @param {number} level number of premises
- * @param {{settings: {enabled: string[], negation: boolean, meta: boolean, ops: string[], nestedDepth: number}, pool}} ctx
+ * @param {{settings: {enabled: string[], negation: boolean, meta: boolean, ops: string[], nestedDepth: number, premiseOrder?: string}, pool}} ctx
  */
 export function generateQuestion(type, level, ctx) {
     const n = Math.max(MIN_LEVEL[type] || 2, Math.min(MAX_LEVEL, level));

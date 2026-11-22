@@ -471,3 +471,8 @@ dialog h2 { font-size: 1.6rem; }
 .program-notice { font-weight: 600; }
 .presets__desc { max-width: 46rem; margin: -.4rem 0 1rem; }
 @media (max-width: 760px) { .program-block { grid-column: 1 / -1; } }
+
+/* reveal the conclusion (hidden-premises mode) */
+.reveal { margin-top: 1.25rem; }
+.reveal-btn { min-height: 52px; gap: .8rem; }
+.reveal-btn .kbd { border-color: currentColor; }

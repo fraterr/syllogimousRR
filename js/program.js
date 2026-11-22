@@ -2,8 +2,10 @@
 //
 // Sources behind the plan (see README): relational-training studies (SMART)
 // train same/opposite and more/less first; community guides start without a
-// clock, then a ~30 s limit, then hide earlier premises (working memory), then
-// add harder relation types one at a time; 2–3 sessions of ~30 minutes a week.
+// clock and with premises in a connected order, then a ~30 s limit with the
+// premises hidden once the conclusion is shown, then scrambled premises and
+// premises one at a time (working memory), then harder relation types one at a
+// time; 2–3 sessions of ~30 minutes a week.
 // A stage advances after enough completed sessions AND only while recent
 // accuracy holds, so nobody is pushed forward while still guessing.
 
@@ -16,6 +18,7 @@ const BASE = {
     timerMode: 'off', timers: { ...TIMER_DEFAULTS },
     negation: false, negationReminder: true, meta: false,
     oneAtATime: false, stroop: false, shuffleButtons: false,
+    premiseOrder: 'ordered', hidePremises: false,
     explainAlways: true, autoNext: true,
     sessionMinutes: 30, weeklyGoal: 3, nestedDepth: 0,
 };
@@ -23,9 +26,10 @@ const BASE = {
 /** Each stage: completed sessions needed to reach it, and what it changes. */
 export const STAGES = [
     { sessions: 0, patch: {} },
-    { sessions: 3, patch: { add: ['temporal'], timerMode: 'fixed', timers30: ['distinction', 'comparison', 'temporal'] } },
-    { sessions: 6, patch: { add: ['direction', 'syllogism'], oneAtATime: true, negation: true, timerMode: 'adaptive', explainAlways: false } },
-    { sessions: 18, patch: { add: ['direction3D'] } },
+    { sessions: 3, patch: { add: ['temporal'], timerMode: 'fixed', timers30: ['distinction', 'comparison', 'temporal'], hidePremises: true } },
+    { sessions: 6, patch: { add: ['direction', 'syllogism'], negation: true, timerMode: 'adaptive', explainAlways: false, premiseOrder: 'p50' } },
+    { sessions: 12, patch: { oneAtATime: true, premiseOrder: 'p80' } },
+    { sessions: 18, patch: { add: ['direction3D'], premiseOrder: 'scrambled' } },
     { sessions: 21, patch: { add: ['direction4D'] } },
     { sessions: 24, patch: { add: ['analogy'], meta: true } },
     { sessions: 27, patch: { add: ['binary'] } },
@@ -41,8 +45,9 @@ export function stageSettings(stage, current) {
     const s = {
         ...DEFAULTS,
         // keep personal display choices
-        lang: current.lang, theme: current.theme, textSize: current.textSize,
-        reduceMotion: current.reduceMotion, negSymbol: current.negSymbol,
+        lang: current.lang || DEFAULTS.lang, theme: current.theme || DEFAULTS.theme,
+        textSize: current.textSize || DEFAULTS.textSize,
+        reduceMotion: !!current.reduceMotion, negSymbol: !!current.negSymbol,
         ...structuredClone(BASE),
         program: true,
     };

@@ -11,7 +11,8 @@ This version is a rewrite and is not endorsed by the original author. Non-commer
 Distinction (same / opposite), Comparison (more / less), Time (before / after), Syllogisms,
 Space 2D, Space 3D, Space-time, Analogy, Binary logic (with nesting) and Sorting (discover a hidden rule).
 Optional challenges: negation, meta-relations, Stroop interference, premises shown one at a time,
-shuffled answer buttons, nonsense syllables or real nouns.
+shuffled answer buttons, nonsense syllables or real nouns, premise order (in order, 50% or 80%
+scrambled, scrambled) and hiding the premises once the conclusion is shown (no rereading).
 
 ## Languages
 
@@ -59,9 +60,11 @@ New:
   to measure progress beyond the trained levels.
 - History with filters; CSV export; JSON backup and restore; presets (Beginner, Intermediate, Expert).
 - Recommended programme (guided): starts with the relations used in relational-training studies
-  (same/opposite, more/less) without a clock, then adds a 30-second limit, premises one at a time,
-  negation and new question types in 7 stages. A stage advances after enough completed 30-minute
-  sessions (3, 6, 18, 21, 24, 27) and only while recent accuracy is at least 70%.
+  (same/opposite, more/less) without a clock and with premises in order, then adds a 30-second
+  limit and hidden premises, half-scrambled premises with negation and new types, premises one at a
+  time, fully scrambled premises and the remaining types, in 8 stages. A stage advances after enough
+  completed 30-minute sessions (3, 6, 12, 18, 21, 24, 27) and only while recent accuracy is at
+  least 70%. The programme never changes the language (English by default).
 
 ## Research basis
 
